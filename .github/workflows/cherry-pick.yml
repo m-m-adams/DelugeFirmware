@@ -9,7 +9,6 @@ on:
 permissions:
   issues: read
   pull-requests: write
-  repository-projects: read|write|none
 
 
 jobs:
