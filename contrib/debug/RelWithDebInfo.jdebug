@@ -22,20 +22,21 @@ void OnProjectLoad (void) {
   //
   // Dialog-generated settings
   //
-  Project.AddPathSubstitute ("C:/Data/Downloads", "$(ProjectDir)");
-  Project.AddPathSubstitute ("c:/data/downloads", "$(ProjectDir)");
-  Project.SetTraceSource ("Trace Buffer");
+  Project.SetTraceSource ("Trace Pins");
+  Project.SetTracePortWidth (2);
   Project.SetDevice ("R7S721020");
-  Project.SetHostIF ("USB", "600000832");
+  Project.SetHostIF ("USB", "933001354");
   Project.SetTargetIF ("SWD");
   Project.SetTIFSpeed ("4 MHz");
+  Project.AddPathSubstitute ("C:/Data/Downloads", "$(ProjectDir)");
+  Project.AddPathSubstitute ("c:/data/downloads", "$(ProjectDir)");
   Project.AddSvdFile ("$(InstallDir)/Config/CPU/Cortex-A9.svd");
   //
   // User settings
   //
   Edit.Preference (PREF_TIMESTAMP_FORMAT, TIMESTAMP_FORMAT_INST_CNT);
-  File.Open ("../../build/RelWithDebInfo/deluge.elf");
   Edit.SysVar (VAR_TRACE_CORE_CLOCK, 400000000);
+  File.Open ("../../build/RelWithDebInfo/deluge.elf");
 }
 
 /*********************************************************************

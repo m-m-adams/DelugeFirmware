@@ -331,6 +331,9 @@ void resetAutomationSettings() {
 }
 
 void readSettings() {
+	resetSettings();
+	return;
+
 	std::span buffer{(uint8_t*)miscStringBuffer, kFilenameBufferSize};
 	R_SFLASH_ByteRead(0x80000 - 0x1000, buffer.data(), kFilenameBufferSize, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE,
 	                  SPIBSC_1BIT, SPIBSC_OUTPUT_ADDR_24);
@@ -739,6 +742,8 @@ static bool areAutomationSettingsValid(std::span<uint8_t> buffer) {
 }
 
 void writeSettings() {
+	return;
+
 	std::span<uint8_t> buffer{(uint8_t*)miscStringBuffer, kFilenameBufferSize};
 	std::fill(buffer.begin(), buffer.end(), 0);
 

@@ -22,20 +22,22 @@ void OnProjectLoad (void) {
   //
   // Dialog-generated settings
   //
-  Project.AddPathSubstitute ("C:/Data/Downloads", "$(ProjectDir)");
-  Project.AddPathSubstitute ("c:/data/downloads", "$(ProjectDir)");
-  Project.SetTraceSource ("Trace Buffer");
+  Project.SetTraceSource ("Trace Pins");
   Project.SetDevice ("R7S721020");
-  Project.SetHostIF ("USB", "600000832");
+  Project.SetHostIF ("USB", "933001354");
   Project.SetTargetIF ("SWD");
   Project.SetTIFSpeed ("4 MHz");
+  Project.SetJLinkScript ("C:/Data/prj/DelugeFirmware/Official/contrib/debug/Tracing.JLinkScript");
+  Project.AddPathSubstitute ("C:/Data/Downloads", "$(ProjectDir)");
+  Project.AddPathSubstitute ("c:/data/downloads", "$(ProjectDir)");
   Project.AddSvdFile ("$(InstallDir)/Config/CPU/Cortex-A9.svd");
   //
   // User settings
   //
   Edit.Preference (PREF_TIMESTAMP_FORMAT, TIMESTAMP_FORMAT_INST_CNT);
-  File.Open ("../../build/Debug/deluge.elf");
   Edit.SysVar (VAR_TRACE_CORE_CLOCK, 400000000);
+  Edit.SysVar (VAR_HSS_SPEED, 1000000);
+  File.Open ("../../build/Debug/deluge.elf");
 }
 
 /*********************************************************************
@@ -239,6 +241,7 @@ void AfterTargetDownload (void) {
 **********************************************************************
 */
 //void AfterTargetHalt (void) {
+//	Target.WriteU32(0xFC00F004, 8388608)
 //}
 
 /*********************************************************************

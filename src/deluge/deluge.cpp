@@ -656,6 +656,8 @@ extern "C" int32_t deluge_main(void) {
 	uint32_t oledSPIDMAConfig = (0b1101000 | (OLED_SPI_DMA_CHANNEL & 7));
 	bool have_oled = ((DMACn(OLED_SPI_DMA_CHANNEL).CHCFG_n & oledSPIDMAConfig) == oledSPIDMAConfig);
 
+	have_oled = true;
+
 	// Give the PIC some startup instructions
 	if (have_oled) {
 		PIC::enableOLED();
@@ -767,13 +769,22 @@ extern "C" int32_t deluge_main(void) {
 
 	// Setup SPIBSC. Crucial that this only be done now once everything else is running, because I've injected graphics
 	// and audio routines into the SPIBSC wait routines, so that has to be running
-	setPinMux(4, 2, 2);
-	setPinMux(4, 3, 2);
-	setPinMux(4, 4, 2);
-	setPinMux(4, 5, 2);
-	setPinMux(4, 6, 2);
-	setPinMux(4, 7, 2);
-	initSPIBSC(); // This will run the audio routine! Ideally, have external RAM set up by now.
+	// setPinMux(4, 2, 2);
+	// setPinMux(4, 3, 2);
+	// setPinMux(4, 4, 2);
+	// setPinMux(4, 5, 2);
+	// setPinMux(4, 6, 2);
+	// setPinMux(4, 7, 2);
+	// initSPIBSC(); // This will run the audio routine! Ideally, have external RAM set up by now.
+	setPinMux(4, 2, 3);
+	setPinMux(4, 3, 3);
+	setPinMux(4, 4, 3);
+	setPinMux(4, 6, 3);
+	setPinMux(4, 7, 3);
+
+	setPinMux(4, 5, 1); // Ctrl., needs to be disabled
+	setPinAsOutput(4, 5);
+	setOutputState(4, 5, 1);
 
 	PIC::requestFirmwareVersion(); // Request PIC firmware version
 	PIC::resendButtonStates();     // Tell PIC to re-send button states

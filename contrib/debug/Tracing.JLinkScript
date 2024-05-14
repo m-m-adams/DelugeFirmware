@@ -1,0 +1,19 @@
+__constant U32 _ADDR_ICE_REG_JTTRCSEL   = (0xFC00F004); // JTAG Trace Select Register, can override trace pin settings to directly enable trace function
+__constant U32 _ADDR_ICE_REG_LOCK       = (0xFC00FFB0); // ICE REG Unlock Register
+__constant U32 _REG_UNLOCK_WORD         = (0xC5ACCE55);
+
+int OnTraceStart(void) {
+ //U32 v;
+ //
+ // RZ/A1L devices are mostly compatible to each other when it comes to the trace init
+ // This allows us to use a generic init
+ //
+ // Note: The RZ/A1L devices support a trace pin override feature which can be set to override current GPIO settings for trace pins and
+ //       directly enable the trace functions of the corresponding pins.
+ //    
+ JLINK_MEM_WriteU32(_ADDR_ICE_REG_LOCK, _REG_UNLOCK_WORD);  // Unlock ICE registers
+ //v = JLINK_MEM_ReadU32(_ADDR_ICE_REG_JTTRCSEL);
+ //v |= (1 << 20);                                    // Set trace pins as trace outputs regardless of the general I/O port setting.
+ //JLINK_MEM_WriteU32(_ADDR_ICE_REG_JTTRCSEL, v);
+ return 0;
+}
