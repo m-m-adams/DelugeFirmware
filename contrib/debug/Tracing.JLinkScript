@@ -12,8 +12,8 @@ int OnTraceStart(void) {
  //       directly enable the trace functions of the corresponding pins.
  //    
  JLINK_MEM_WriteU32(_ADDR_ICE_REG_LOCK, _REG_UNLOCK_WORD);  // Unlock ICE registers
- //v = JLINK_MEM_ReadU32(_ADDR_ICE_REG_JTTRCSEL);
- //v |= (1 << 20);                                    // Set trace pins as trace outputs regardless of the general I/O port setting.
- //JLINK_MEM_WriteU32(_ADDR_ICE_REG_JTTRCSEL, v);
+ v = JLINK_MEM_ReadU32(_ADDR_ICE_REG_JTTRCSEL);
+ v |= (1 << 20);                                    // Set trace pins as trace outputs regardless of the general I/O port setting.
+ JLINK_MEM_WriteU32(_ADDR_ICE_REG_JTTRCSEL, v);
  return 0;
 }

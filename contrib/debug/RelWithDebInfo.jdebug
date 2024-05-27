@@ -22,21 +22,31 @@ void OnProjectLoad (void) {
   //
   // Dialog-generated settings
   //
-  Project.SetTraceSource ("Trace Pins");
-  Project.SetTracePortWidth (2);
   Project.SetDevice ("R7S721020");
   Project.SetHostIF ("USB", "933001354");
   Project.SetTargetIF ("SWD");
-  Project.SetTIFSpeed ("4 MHz");
+  Project.SetTIFSpeed ("50 MHz");
+  Project.SetTraceSource ("Trace Pins");
+  Project.SetTracePortWidth (2);
   Project.AddPathSubstitute ("C:/Data/Downloads", "$(ProjectDir)");
   Project.AddPathSubstitute ("c:/data/downloads", "$(ProjectDir)");
   Project.AddSvdFile ("$(InstallDir)/Config/CPU/Cortex-A9.svd");
   //
   // User settings
   //
+  Edit.SysVar (VAR_BREAK_AT_THIS_SYMBOL, "resetprg");
   Edit.Preference (PREF_TIMESTAMP_FORMAT, TIMESTAMP_FORMAT_INST_CNT);
   Edit.SysVar (VAR_TRACE_CORE_CLOCK, 400000000);
   File.Open ("../../build/RelWithDebInfo/deluge.elf");
+  Window.CloseAll();
+  Window.Show ("Console");
+  Window.Show ("J-Link Control Panel");
+  Window.Show ("Local Data");
+  Window.Show ("Call Stack");
+  Window.Show ("Call Graph");
+  Window.Show ("Instruction Trace");
+  Window.Show ("Code Profile");
+  Window.Show ("Source Files");
 }
 
 /*********************************************************************
