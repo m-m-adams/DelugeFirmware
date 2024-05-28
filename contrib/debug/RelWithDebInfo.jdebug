@@ -27,20 +27,22 @@ void OnProjectLoad (void) {
   Project.SetTargetIF ("SWD");
   Project.SetTIFSpeed ("50 MHz");
   Project.SetTraceSource ("Trace Pins");
-  Project.SetTracePortWidth (2);
+  Project.SetTracePortWidth (4);
   Project.AddPathSubstitute ("C:/Data/Downloads", "$(ProjectDir)");
   Project.AddPathSubstitute ("c:/data/downloads", "$(ProjectDir)");
   Project.AddSvdFile ("$(InstallDir)/Config/CPU/Cortex-A9.svd");
+  //Project.SetJLinkLogFile("jlinklogs.log");
+
   //
   // User settings
   //
-  Edit.SysVar (VAR_BREAK_AT_THIS_SYMBOL, "resetprg");
   Edit.Preference (PREF_TIMESTAMP_FORMAT, TIMESTAMP_FORMAT_INST_CNT);
+  Edit.SysVar (VAR_HSS_SPEED, BP_STATE_OFF);
+  Edit.SysVar (VAR_BREAK_AT_THIS_SYMBOL, "resetprg");
   Edit.SysVar (VAR_TRACE_CORE_CLOCK, 400000000);
   File.Open ("../../build/RelWithDebInfo/deluge.elf");
   Window.CloseAll();
   Window.Show ("Console");
-  Window.Show ("J-Link Control Panel");
   Window.Show ("Local Data");
   Window.Show ("Call Stack");
   Window.Show ("Call Graph");
@@ -214,6 +216,7 @@ void AfterTargetReset (void) {
 */
 void AfterTargetDownload (void) {
   _SetupTarget();
+  Exec.Command("ReadIntoTraceCache 0x20020000 0x18d4b8");
 }
 
 /*********************************************************************
