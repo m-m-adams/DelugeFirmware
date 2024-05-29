@@ -22,12 +22,13 @@ void OnProjectLoad (void) {
   //
   // Dialog-generated settings
   //
+  Project.SetTraceSource ("Trace Pins");
+  Project.SetTracePortWidth (1);
+  Project.SetTraceTiming (2450, 2450, 2450, 2450);
   Project.SetDevice ("R7S721020");
   Project.SetHostIF ("USB", "933001354");
   Project.SetTargetIF ("SWD");
   Project.SetTIFSpeed ("50 MHz");
-  Project.SetTraceSource ("Trace Pins");
-  Project.SetTracePortWidth (4);
   Project.AddPathSubstitute ("C:/Data/Downloads", "$(ProjectDir)");
   Project.AddPathSubstitute ("c:/data/downloads", "$(ProjectDir)");
   Project.AddSvdFile ("$(InstallDir)/Config/CPU/Cortex-A9.svd");
@@ -37,9 +38,9 @@ void OnProjectLoad (void) {
   // User settings
   //
   Edit.Preference (PREF_TIMESTAMP_FORMAT, TIMESTAMP_FORMAT_INST_CNT);
+  Edit.SysVar (VAR_TRACE_CORE_CLOCK, 400000000);
   Edit.SysVar (VAR_HSS_SPEED, BP_STATE_OFF);
   Edit.SysVar (VAR_BREAK_AT_THIS_SYMBOL, "resetprg");
-  Edit.SysVar (VAR_TRACE_CORE_CLOCK, 400000000);
   File.Open ("../../build/RelWithDebInfo/deluge.elf");
   Window.CloseAll();
   Window.Show ("Console");
@@ -216,7 +217,7 @@ void AfterTargetReset (void) {
 */
 void AfterTargetDownload (void) {
   _SetupTarget();
-  Exec.Command("ReadIntoTraceCache 0x20020000 0x18d4b8");
+  Exec.Command("ReadIntoTraceCache 0x20000000 0x00300000");
 }
 
 /*********************************************************************
