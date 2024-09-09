@@ -992,7 +992,7 @@ NoteRow* InstrumentClip::getNoteRowOnScreen(int32_t yDisplay, Song* song, int32_
 ModelStackWithNoteRow* InstrumentClip::getNoteRowForYNote(int32_t yNote, ModelStackWithTimelineCounter* modelStack) {
 	int32_t noteRowIndex;
 	NoteRow* noteRow = getNoteRowForYNote(yNote, &noteRowIndex);
-	int32_t noteRowId;
+	int32_t noteRowId{0};
 	if (noteRow) {
 		noteRowId = getNoteRowId(noteRow, noteRowIndex);
 	}

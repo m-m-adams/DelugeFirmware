@@ -667,33 +667,54 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 		                                      // playbackHandler.recording) {
 		modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
 
-		for (int32_t n = 0; n < arpeggiator.notes.getNumElements(); n++) {
-			ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-			if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)]
-			    == channelOrNoteNumber) { // If we're actually identifying by MIDICharacteristic::NOTE, we could
-				                          // do a much faster search,
-				// but let's not bother - that's only done when we're receiving MIDI polyphonic aftertouch
-				// messages, and there's hardly much to search through.
-				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    ((InstrumentClip*)modelStack->getTimelineCounter())
-				        ->getNoteRowForYNote(
-				            arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-				            modelStack); // No need to create - it should already exist if they're recording a
-				                         // note here.
-				NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-				if (noteRow) {
-					bool success = noteRow->recordPolyphonicExpressionEvent(modelStackWithNoteRow, newValue,
-					                                                        whichExpressionDimension, false);
-					if (success) {
-						continue;
-					}
-				}
+		if (whichCharacteristic == MIDICharacteristic::CHANNEL) {
 
+			for (int32_t n = 0; n < arpeggiator.notes.getNumElements(); n++) {
+				ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
+				if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)]
+				    == channelOrNoteNumber) { // If we're actually identifying by MIDICharacteristic::NOTE, we could
+					                          // do a much faster search,
+					// but let's not bother - that's only done when we're receiving MIDI polyphonic aftertouch
+					// messages, and there's hardly much to search through.
+					ModelStackWithNoteRow* modelStackWithNoteRow =
+					    ((InstrumentClip*)modelStack->getTimelineCounter())
+					        ->getNoteRowForYNote(
+					            arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+					            modelStack); // No need to create - it should already exist if they're recording a
+					                         // note here.
+					NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+					if (noteRow) {
+						bool success = noteRow->recordPolyphonicExpressionEvent(modelStackWithNoteRow, newValue,
+						                                                        whichExpressionDimension, false);
+						if (success) {
+							continue;
+						}
+					}
+
+					// If still here, that didn't work, so just send it without recording.
+					polyphonicExpressionEventOnChannelOrNote(
+					    newValue, whichExpressionDimension,
+					    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+					    MIDICharacteristic::NOTE);
+				}
+			}
+		}
+		else {
+			ModelStackWithNoteRow* modelStackWithNoteRow =
+			    ((InstrumentClip*)modelStack->getTimelineCounter())
+			        ->getNoteRowForYNote(channelOrNoteNumber,
+			                             modelStack); // No need to create - it should already exist if they're
+			                                          // recording a note here.
+			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+			bool success{false};
+			if (noteRow) {
+				success = noteRow->recordPolyphonicExpressionEvent(modelStackWithNoteRow, newValue,
+				                                                   whichExpressionDimension, false);
+			}
+			if (!noteRow || !success) {
 				// If still here, that didn't work, so just send it without recording.
-				polyphonicExpressionEventOnChannelOrNote(
-				    newValue, whichExpressionDimension,
-				    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-				    MIDICharacteristic::NOTE);
+				polyphonicExpressionEventOnChannelOrNote(newValue, whichExpressionDimension, channelOrNoteNumber,
+				                                         MIDICharacteristic::NOTE);
 			}
 		}
 	}
