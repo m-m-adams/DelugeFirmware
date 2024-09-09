@@ -25,7 +25,6 @@
 #include "modulation/lfo.h"
 #include "modulation/params/param.h"
 #include "modulation/patch/patcher.h"
-
 class StereoSample;
 class ModelStackWithVoice;
 using namespace deluge;
