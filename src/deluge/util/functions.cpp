@@ -56,6 +56,8 @@ int32_t getParamRange(int32_t p) {
 	switch (p) {
 	case params::LOCAL_ENV_0_ATTACK:
 	case params::LOCAL_ENV_1_ATTACK:
+	case params::LOCAL_ENV_2_ATTACK:
+	case params::LOCAL_ENV_3_ATTACK:
 		return 536870912 * 1.5;
 
 	case params::GLOBAL_DELAY_RATE:
@@ -118,6 +120,8 @@ int32_t getParamNeutralValue(int32_t p) {
 
 	case params::LOCAL_ENV_0_ATTACK:
 	case params::LOCAL_ENV_1_ATTACK:
+	case params::LOCAL_ENV_2_ATTACK:
+	case params::LOCAL_ENV_3_ATTACK:
 		return 4096; // attackRateTable[userValue];
 
 	case params::LOCAL_ENV_0_RELEASE:
@@ -237,7 +241,7 @@ int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue,
 	if (p >= params::LOCAL_ENV_0_DECAY && p <= params::LOCAL_ENV_1_RELEASE) {
 		return multiply_32x32_rshift32(paramNeutralValue, lookupReleaseRate(patchedValue));
 	}
-	if (p == params::LOCAL_ENV_0_ATTACK || p == params::LOCAL_ENV_1_ATTACK) {
+	if (p >= params::LOCAL_ENV_0_ATTACK && p <= params::LOCAL_ENV_3_ATTACK) {
 		patchedValue = -patchedValue;
 	}
 
@@ -322,6 +326,12 @@ char const* getSourceDisplayNameForOLED(PatchSource s) {
 
 	case PatchSource::ENVELOPE_1:
 		return l10n::get(STRING_FOR_PATCH_SOURCE_ENVELOPE_1);
+
+	case PatchSource::ENVELOPE_2:
+		return l10n::get(STRING_FOR_ENVELOPE_3);
+
+	case PatchSource::ENVELOPE_3:
+		return l10n::get(STRING_FOR_ENVELOPE_4);
 
 	case PatchSource::VELOCITY:
 		return l10n::get(STRING_FOR_PATCH_SOURCE_VELOCITY);

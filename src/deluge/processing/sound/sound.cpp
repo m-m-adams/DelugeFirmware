@@ -1197,7 +1197,8 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 
 		reader.exitTag("hpf", true);
 	}
-
+	// this seems to be legacy, I don't see it get hit for song, kit, or synth loads, they're done in
+	// readParamTagFromFile
 	else if (!strcmp(tagName, "envelope1")) {
 		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -1358,7 +1359,8 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 	case params::LOCAL_VOLUME:
 		return (s != PatchSource::ENVELOPE_0
 		        // No envelopes allowed to be patched to volume - this is hardcoded elsewhere
-		        && s != PatchSource::ENVELOPE_1
+		        && s != PatchSource::ENVELOPE_1 && s != PatchSource::ENVELOPE_2
+		        && s != PatchSource::ENVELOPE_3
 		        // Don't let the sidechain patch to local volume - it's supposed to go to global volume
 		        && s != PatchSource::SIDECHAIN)
 		           ? PatchCableAcceptance::ALLOWED
@@ -3468,7 +3470,7 @@ gotError:
 					memcpy(destinationRange, tempRange, source->ranges.elementSize);
 					reader.match('}');          // exit value object
 					reader.exitTag(NULL, true); // exit box.
-				}                               // was a sampleRange or wavetableRange
+				} // was a sampleRange or wavetableRange
 				else {
 					reader.exitTag();
 				}
@@ -3742,54 +3744,12 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 
 	else if (!strcmp(tagName, "envelope1")) {
 		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "attack")) {
-				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_ATTACK,
-				                         readAutomationUpToPos);
-				reader.exitTag("attack");
-			}
-			else if (!strcmp(tagName, "decay")) {
-				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_DECAY,
-				                         readAutomationUpToPos);
-				reader.exitTag("decay");
-			}
-			else if (!strcmp(tagName, "sustain")) {
-				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_SUSTAIN,
-				                         readAutomationUpToPos);
-				reader.exitTag("sustain");
-			}
-			else if (!strcmp(tagName, "release")) {
-				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_RELEASE,
-				                         readAutomationUpToPos);
-				reader.exitTag("release");
-			}
-		}
+		readEnvelope(reader, tagName, readAutomationUpToPos, patchedParamsSummary, patchedParams, 0);
 		reader.exitTag("envelope1", true);
 	}
 	else if (!strcmp(tagName, "envelope2")) {
 		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "attack")) {
-				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_ATTACK,
-				                         readAutomationUpToPos);
-				reader.exitTag("attack");
-			}
-			else if (!strcmp(tagName, "decay")) {
-				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_DECAY,
-				                         readAutomationUpToPos);
-				reader.exitTag("decay");
-			}
-			else if (!strcmp(tagName, "sustain")) {
-				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_SUSTAIN,
-				                         readAutomationUpToPos);
-				reader.exitTag("sustain");
-			}
-			else if (!strcmp(tagName, "release")) {
-				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_RELEASE,
-				                         readAutomationUpToPos);
-				reader.exitTag("release");
-			}
-		}
+		readEnvelope(reader, tagName, readAutomationUpToPos, patchedParamsSummary, patchedParams, 1);
 		reader.exitTag("envelope2", true);
 	}
 	else if (!strcmp(tagName, "lfo1Rate")) {
@@ -3884,6 +3844,33 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 
 	return true;
 }
+void Sound::readEnvelope(Deserializer& reader, const char* tagName, int32_t readAutomationUpToPos,
+                         ParamCollectionSummary* patchedParamsSummary, PatchedParamSet* patchedParams,
+                         uint8_t envelopeIndex) {
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+
+		if (!strcmp(tagName, "attack")) {
+			patchedParams->readParam(reader, patchedParamsSummary,
+			                         params::getEnvParam(EnvelopeStage::ATTACK, envelopeIndex), readAutomationUpToPos);
+			reader.exitTag("attack");
+		}
+		else if (!strcmp(tagName, "decay")) {
+			patchedParams->readParam(reader, patchedParamsSummary,
+			                         params::getEnvParam(EnvelopeStage::DECAY, envelopeIndex), readAutomationUpToPos);
+			reader.exitTag("decay");
+		}
+		else if (!strcmp(tagName, "sustain")) {
+			patchedParams->readParam(reader, patchedParamsSummary,
+			                         params::getEnvParam(EnvelopeStage::SUSTAIN, envelopeIndex), readAutomationUpToPos);
+			reader.exitTag("sustain");
+		}
+		else if (!strcmp(tagName, "release")) {
+			patchedParams->readParam(reader, patchedParamsSummary,
+			                         params::getEnvParam(EnvelopeStage::RELEASE, envelopeIndex), readAutomationUpToPos);
+			reader.exitTag("release");
+		}
+	}
+}
 
 void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation) {
 
@@ -3965,25 +3952,28 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	unpatchedParams->writeParamAsAttribute(writer, "rhythm", params::UNPATCHED_ARP_RHYTHM, writeAutomation);
 
 	writer.writeOpeningTagEnd();
-
-	// Envelopes
-	writer.writeOpeningTagBeginning("envelope1");
-	patchedParams->writeParamAsAttribute(writer, "attack", params::LOCAL_ENV_0_ATTACK, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "decay", params::LOCAL_ENV_0_DECAY, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "sustain", params::LOCAL_ENV_0_SUSTAIN, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "release", params::LOCAL_ENV_0_RELEASE, writeAutomation);
-	writer.closeTag();
-
-	writer.writeOpeningTagBeginning("envelope2");
-	patchedParams->writeParamAsAttribute(writer, "attack", params::LOCAL_ENV_1_ATTACK, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "decay", params::LOCAL_ENV_1_DECAY, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "sustain", params::LOCAL_ENV_1_SUSTAIN, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "release", params::LOCAL_ENV_1_RELEASE, writeAutomation);
-	writer.closeTag();
+	for (int i = 0; i < 4; i++) {
+		writeEnvelopeParams(writer, writeAutomation, patchedParams, i);
+	}
 
 	paramManager->getPatchCableSet()->writePatchCablesToFile(writer, writeAutomation);
 
 	ModControllableAudio::writeParamTagsToFile(writer, paramManager, writeAutomation);
+}
+void Sound::writeEnvelopeParams(Serializer& writer, bool writeAutomation, PatchedParamSet* patchedParams,
+                                uint8_t envIndex) { // Envelopes
+	char buf[25]{0};
+	sprintf(buf, "envelope%d", envIndex + 1);
+	writer.writeOpeningTagBeginning(buf);
+	patchedParams->writeParamAsAttribute(writer, "attack", params::getEnvParam(EnvelopeStage::ATTACK, envIndex),
+	                                     writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "decay", params::getEnvParam(EnvelopeStage::DECAY, envIndex),
+	                                     writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "sustain", params::getEnvParam(EnvelopeStage::SUSTAIN, envIndex),
+	                                     writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "release", params::getEnvParam(EnvelopeStage::RELEASE, envIndex),
+	                                     writeAutomation);
+	writer.closeTag();
 }
 
 void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager,

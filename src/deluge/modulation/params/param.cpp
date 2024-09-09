@@ -124,6 +124,8 @@ char const* getPatchedParamShortName(ParamType type) {
 	    [LOCAL_HPF_RESONANCE]            = "HPF reso",
 	    [LOCAL_ENV_0_SUSTAIN]            = "Env1 sus",
 	    [LOCAL_ENV_1_SUSTAIN]            = "Env2 sus",
+		[LOCAL_ENV_2_SUSTAIN]            = "Env2 sus",
+		[LOCAL_ENV_3_SUSTAIN]            = "Env3 sus",
 	    [LOCAL_LPF_MORPH]                = "LPF Morph",
 	    [LOCAL_HPF_MORPH]                = "HPF Morph",
 	    [LOCAL_OSC_A_PHASE_WIDTH]        = "Osc1 PW",
@@ -139,12 +141,18 @@ char const* getPatchedParamShortName(ParamType type) {
 	    [LOCAL_MODULATOR_1_PITCH_ADJUST] = "Mod1 pitch",
 	    [LOCAL_HPF_FREQ]                 = "HPF freq",
 	    [LOCAL_LFO_LOCAL_FREQ]           = "LFO2 rate",
-	    [LOCAL_ENV_0_ATTACK]             = "Env1attack",
-	    [LOCAL_ENV_1_ATTACK]             = "Env2attack",
+		[LOCAL_ENV_0_ATTACK]             = "Env1attack",
+		[LOCAL_ENV_1_ATTACK]             = "Env2attack",
+		[LOCAL_ENV_2_ATTACK]             = "Env3attack",
+		[LOCAL_ENV_3_ATTACK]             = "Env4attack",
 	    [LOCAL_ENV_0_DECAY]              = "Env1 decay",
 	    [LOCAL_ENV_1_DECAY]              = "Env2 decay",
+		[LOCAL_ENV_2_DECAY]              = "Env3 decay",
+		[LOCAL_ENV_3_DECAY]              = "Env4 decay",
 	    [LOCAL_ENV_0_RELEASE]            = "Env1 rel",
 	    [LOCAL_ENV_1_RELEASE]            = "Env2 rel",
+		[LOCAL_ENV_2_RELEASE]            = "Env3 rel",
+		[LOCAL_ENV_3_RELEASE]            = "Env4 rel",
 	    [GLOBAL_VOLUME_POST_FX]          = "POSTFXLVL",
 	    [GLOBAL_VOLUME_POST_REVERB_SEND] = "Side level",
 	    [GLOBAL_REVERB_AMOUNT]           = "Reverb amt",
@@ -185,6 +193,9 @@ char const* getPatchedParamDisplayName(int32_t p) {
 	    [LOCAL_HPF_RESONANCE] = STRING_FOR_PARAM_LOCAL_HPF_RESONANCE,
 	    [LOCAL_ENV_0_SUSTAIN] = STRING_FOR_PARAM_LOCAL_ENV_0_SUSTAIN,
 	    [LOCAL_ENV_1_SUSTAIN] = STRING_FOR_PARAM_LOCAL_ENV_1_SUSTAIN,
+	    [LOCAL_ENV_2_SUSTAIN] = STRING_FOR_PARAM_LOCAL_ENV_2_SUSTAIN,
+	    [LOCAL_ENV_3_SUSTAIN] = STRING_FOR_PARAM_LOCAL_ENV_3_SUSTAIN,
+
 	    [LOCAL_LPF_MORPH] = STRING_FOR_PARAM_LOCAL_LPF_MORPH,
 	    [LOCAL_HPF_MORPH] = STRING_FOR_PARAM_LOCAL_HPF_MORPH,
 	    [LOCAL_OSC_A_PHASE_WIDTH] = STRING_FOR_PARAM_LOCAL_OSC_A_PHASE_WIDTH,
@@ -202,10 +213,16 @@ char const* getPatchedParamDisplayName(int32_t p) {
 	    [LOCAL_LFO_LOCAL_FREQ] = STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ,
 	    [LOCAL_ENV_0_ATTACK] = STRING_FOR_PARAM_LOCAL_ENV_0_ATTACK,
 	    [LOCAL_ENV_1_ATTACK] = STRING_FOR_PARAM_LOCAL_ENV_1_ATTACK,
+	    [LOCAL_ENV_2_ATTACK] = STRING_FOR_PARAM_LOCAL_ENV_2_ATTACK,
+	    [LOCAL_ENV_3_ATTACK] = STRING_FOR_PARAM_LOCAL_ENV_3_ATTACK,
 	    [LOCAL_ENV_0_DECAY] = STRING_FOR_PARAM_LOCAL_ENV_0_DECAY,
 	    [LOCAL_ENV_1_DECAY] = STRING_FOR_PARAM_LOCAL_ENV_1_DECAY,
+	    [LOCAL_ENV_2_DECAY] = STRING_FOR_PARAM_LOCAL_ENV_2_DECAY,
+	    [LOCAL_ENV_3_DECAY] = STRING_FOR_PARAM_LOCAL_ENV_3_DECAY,
 	    [LOCAL_ENV_0_RELEASE] = STRING_FOR_PARAM_LOCAL_ENV_0_RELEASE,
 	    [LOCAL_ENV_1_RELEASE] = STRING_FOR_PARAM_LOCAL_ENV_1_RELEASE,
+	    [LOCAL_ENV_2_RELEASE] = STRING_FOR_PARAM_LOCAL_ENV_2_RELEASE,
+	    [LOCAL_ENV_3_RELEASE] = STRING_FOR_PARAM_LOCAL_ENV_3_RELEASE,
 	    [GLOBAL_VOLUME_POST_FX] = STRING_FOR_PARAM_GLOBAL_VOLUME_POST_FX,
 	    [GLOBAL_VOLUME_POST_REVERB_SEND] = STRING_FOR_PARAM_GLOBAL_VOLUME_POST_REVERB_SEND,
 	    [GLOBAL_REVERB_AMOUNT] = STRING_FOR_PARAM_GLOBAL_REVERB_AMOUNT,
@@ -581,6 +598,30 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 		case LOCAL_ENV_1_RELEASE:
 			return "env2Release";
 
+		case LOCAL_ENV_2_ATTACK:
+			return "env3Attack";
+
+		case LOCAL_ENV_2_DECAY:
+			return "env3Decay";
+
+		case LOCAL_ENV_2_SUSTAIN:
+			return "env3Sustain";
+
+		case LOCAL_ENV_2_RELEASE:
+			return "env3Release";
+
+		case LOCAL_ENV_3_ATTACK:
+			return "env4Attack";
+
+		case LOCAL_ENV_3_DECAY:
+			return "env4Decay";
+
+		case LOCAL_ENV_3_SUSTAIN:
+			return "env4Sustain";
+
+		case LOCAL_ENV_3_RELEASE:
+			return "env4Release";
+
 		case LOCAL_MODULATOR_0_FEEDBACK:
 			return "modulator1Feedback";
 
@@ -623,6 +664,32 @@ constexpr ParamType fileStringToParamConst(Kind kind, char const* name, bool all
 }
 ParamType fileStringToParam(Kind kind, char const* name, bool allowPatched) {
 	return fileStringToParamConst(kind, name, allowPatched);
+}
+ParamType getEnvParam(EnvelopeStage stage, uint8_t index) {
+	uint8_t p{LOCAL_ENV_0_ATTACK};
+	switch (stage) {
+	case EnvelopeStage::ATTACK:
+		p = LOCAL_ENV_0_ATTACK;
+		break;
+	case EnvelopeStage::DECAY:
+		p = LOCAL_ENV_0_DECAY;
+		break;
+	case EnvelopeStage::SUSTAIN:
+		p = LOCAL_ENV_0_SUSTAIN;
+		break;
+	case EnvelopeStage::RELEASE:
+		p = LOCAL_ENV_0_RELEASE;
+		break;
+
+	case EnvelopeStage::HOLD:
+	case EnvelopeStage::FAST_RELEASE:
+	case EnvelopeStage::OFF:
+#if ALPHA_OR_BETA_VERSION
+		freezeWithError("P000: Bad Stage");
+#endif
+	}
+
+	return static_cast<ParamType>(p + index);
 }
 uint32_t expressionParamFromShortcut(int x, int y) {
 	if (x == 14 && y == 7) {

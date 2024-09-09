@@ -296,4 +296,9 @@ private:
 	ModelStackWithAutoParam* getParamFromModEncoderDeeper(int32_t whichModEncoder,
 	                                                      ModelStackWithThreeMainThings* modelStack,
 	                                                      bool allowCreation = true);
+	static void writeEnvelopeParams(Serializer& writer, bool writeAutomation, PatchedParamSet* patchedParams,
+	                                uint8_t envIndex);
+	static void readEnvelope(Deserializer& reader, const char* tagName, int32_t readAutomationUpToPos,
+	                         ParamCollectionSummary* patchedParamsSummary, PatchedParamSet* patchedParams,
+	                         uint8_t envelopeIndex);
 };

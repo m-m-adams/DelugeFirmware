@@ -91,6 +91,16 @@
         "STRING_FOR_PARAM_LOCAL_ENV_1_SUSTAIN": "Env2 sustain",
         "STRING_FOR_PARAM_LOCAL_ENV_1_RELEASE": "Env2 release",
 
+        "STRING_FOR_PARAM_LOCAL_ENV_2_ATTACK": "Env2 attack",
+        "STRING_FOR_PARAM_LOCAL_ENV_2_DECAY": "Env2 decay",
+        "STRING_FOR_PARAM_LOCAL_ENV_2_SUSTAIN": "Env2 sustain",
+        "STRING_FOR_PARAM_LOCAL_ENV_2_RELEASE": "Env2 release",
+
+        "STRING_FOR_PARAM_LOCAL_ENV_3_ATTACK": "Env2 attack",
+        "STRING_FOR_PARAM_LOCAL_ENV_3_DECAY": "Env2 decay",
+        "STRING_FOR_PARAM_LOCAL_ENV_3_SUSTAIN": "Env2 sustain",
+        "STRING_FOR_PARAM_LOCAL_ENV_3_RELEASE": "Env2 release",
+
         "STRING_FOR_PARAM_GLOBAL_LFO_FREQ": "LFO1 rate",
         "STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ": "LFO2 rate",
 
@@ -379,6 +389,8 @@
         "STRING_FOR_DEV_MENU_G": "Dev Menu G",
         "STRING_FOR_ENVELOPE_1": "Envelope 1",
         "STRING_FOR_ENVELOPE_2": "Envelope 2",
+        "STRING_FOR_ENVELOPE_3": "Envelope 3",
+        "STRING_FOR_ENVELOPE_4": "Envelope 4",
         "STRING_FOR_VOLUME_LEVEL": "Volume",
         "STRING_FOR_AMOUNT_LEVEL": "Level",
         "STRING_FOR_REPEAT_MODE": "Repeat mode",

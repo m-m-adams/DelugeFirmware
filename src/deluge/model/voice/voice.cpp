@@ -2120,6 +2120,7 @@ pitchTooHigh:
 
 							// And if it's an envelope or LFO or random...
 							if (cable->from == PatchSource::ENVELOPE_0 || cable->from == PatchSource::ENVELOPE_1
+							    || cable->from == PatchSource::ENVELOPE_2 || cable->from == PatchSource::ENVELOPE_3
 							    || cable->from == PatchSource::LFO_GLOBAL || cable->from == PatchSource::LFO_LOCAL
 							    || cable->from == PatchSource::RANDOM) {
 								goto dontUseCache;
