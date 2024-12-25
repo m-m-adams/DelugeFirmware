@@ -18,6 +18,7 @@ struct SortedTask {
 };
 // currently 14 are in use
 constexpr int kMaxTasks = 25;
+constexpr int kMaxRTTasks = 2;
 /// internal only to the task scheduler, hence all public. External interaction to use the api
 struct TaskManager {
 
@@ -48,6 +49,7 @@ private:
 	std::array<Task, kMaxTasks> list{};
 	// Sorted list of the current numActiveTasks, lowest priority (highest number) first
 	std::array<SortedTask, kMaxTasks> sortedList;
+	std::array<Task, kMaxRTTasks> rtList{};
 	uint8_t numActiveTasks = 0;
 	uint8_t numRegisteredTasks = 0;
 	Time mustEndBefore = -1; // use for testing or I guess if you want a second temporary task manager?
