@@ -42,7 +42,7 @@
     .extern CurrentTCB
     .extern vTaskSwitchContext
 
-    .global SWI_Handler
+    .global ContextSwitch
     .global RestoreTaskContext
 
 .macro SAVE_CONTEXT
@@ -66,8 +66,6 @@
 
     .endm
 
-; /**********************************************************************/
-
 .macro RESTORE_CONTEXT
 
     /* Set the SP to point to the stack of the task being restored. */
@@ -90,12 +88,10 @@
 
     .endm
 
-/******************************************************************************
- * SVC handler is used to start the scheduler.
- *****************************************************************************/
+
 .align 4
-.type FreeRTOS_SWI_Handler, %function
-FreeRTOS_SWI_Handler:
+.type ContextSwitch, %function
+ContextSwitch:
     /* Save the context of the current task and select a new task to run. */
     SAVE_CONTEXT
 
