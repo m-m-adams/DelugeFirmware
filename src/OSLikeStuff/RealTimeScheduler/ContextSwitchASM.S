@@ -23,7 +23,7 @@
  *
  * https://www.FreeRTOS.org
  * https://github.com/FreeRTOS
- *
+ * Stripped down and slightly edited version of the cortex A9 free rtos port assembly
  */
     .eabi_attribute Tag_ABI_align_preserved, 1
     .text
@@ -39,18 +39,13 @@
     .extern ulICCPMR
 
     /* Variables and functions. */
-    .extern ulMaxAPIPriorityMask
-    .extern _freertos_vector_table
-    .extern pxCurrentTCB
+    .extern CurrentTCB
     .extern vTaskSwitchContext
-    .extern vApplicationIRQHandler
-    .extern ulPortInterruptNesting
-    .extern ulPortTaskHasFPUContext
 
     .global SWI_Handler
-    .global vPortRestoreTaskContext
+    .global RestoreTaskContext
 
-.macro portSAVE_CONTEXT
+.macro SAVE_CONTEXT
 
     /* Save the LR and SPSR onto the system mode stack before switching to
     system mode to save the remaining system mode registers. */
@@ -65,7 +60,7 @@
     VPUSH {D16-D31}
 
     /* Save the stack pointer in the TCB. */
-    LDR     R0, pxCurrentTCBConst
+    LDR     R0, CurrentTCBConst
     LDR     R1, [R0]
     STR     SP, [R1]
 
@@ -73,10 +68,10 @@
 
 ; /**********************************************************************/
 
-.macro portRESTORE_CONTEXT
+.macro RESTORE_CONTEXT
 
     /* Set the SP to point to the stack of the task being restored. */
-    LDR     R0, pxCurrentTCBConst
+    LDR     R0, CurrentTCBConst
     LDR     R1, [R0]
     LDR     SP, [R1]
 
@@ -102,7 +97,7 @@
 .type FreeRTOS_SWI_Handler, %function
 FreeRTOS_SWI_Handler:
     /* Save the context of the current task and select a new task to run. */
-    portSAVE_CONTEXT
+    SAVE_CONTEXT
 
     /* Ensure bit 2 of the stack pointer is clear. */
     MOV     r2, sp
@@ -112,29 +107,21 @@ FreeRTOS_SWI_Handler:
     LDR R0, vTaskSwitchContextConst
     BLX R0
 
-    portRESTORE_CONTEXT
+    RESTORE_CONTEXT
 
 
 /******************************************************************************
- * vPortRestoreTaskContext is used to start the scheduler.
+ * RestoreTaskContext is used to start the scheduler.
  *****************************************************************************/
-.type vPortRestoreTaskContext, %function
-vPortRestoreTaskContext:
+.type RestoreTaskContext, %function
+RestoreTaskContext:
     /* Switch to system mode. */
     CPS     #SYS_MODE
-    portRESTORE_CONTEXT
+    RESTORE_CONTEXT
 
 
-ulICCIARConst:  .word ulICCIAR
-ulICCEOIRConst: .word ulICCEOIR
-ulICCPMRConst: .word ulICCPMR
-pxCurrentTCBConst: .word pxCurrentTCB
-ulCriticalNestingConst: .word ulCriticalNesting
-ulPortTaskHasFPUContextConst: .word ulPortTaskHasFPUContext
-ulMaxAPIPriorityMaskConst: .word ulMaxAPIPriorityMask
+
+
 vTaskSwitchContextConst: .word vTaskSwitchContext
-vApplicationIRQHandlerConst: .word vApplicationIRQHandler
-ulPortInterruptNestingConst: .word ulPortInterruptNesting
-vApplicationFPUSafeIRQHandlerConst: .word vApplicationFPUSafeIRQHandler
-
+CurrentTCBConst: .word CurrentTCB
 .end
