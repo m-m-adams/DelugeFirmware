@@ -56,7 +56,7 @@ struct TaskSchedule {
 
 enum class State {
 	BLOCKED,
-	QUEUED,
+	WAITING,
 	READY,
 };
 

@@ -24,11 +24,8 @@
 
 #if !IN_UNIT_TESTS
 #include "memory/general_memory_allocator.h"
+#include "timers_interrupts/system_clock.h"
 #endif
-
-extern "C" {
-#include "RZA1/ostm/ostm.h"
-}
 
 TaskManager taskManager;
 
@@ -292,13 +289,7 @@ void TaskManager::start(Time duration) {
 	}
 }
 void TaskManager::startClock() {
-	disableTimer(0);
-	setTimerValue(0, 0);
-	// just let it count - a full loop is 2 minutes or so and we'll handle that case manually
-	setOperatingMode(0, FREE_RUNNING, false);
-	enableTimer(0);
 	running = true;
-	lastTime = 0;
 }
 bool TaskManager::checkConditionalTasks() {
 	bool addedTask = false;
@@ -362,20 +353,6 @@ void TaskManager::printStats() {
 	}
 	auto totalTime = cpuTime + overhead;
 	D_PRINTLN("Working time: %5.2f, Overhead: %5.2f. Total running time: %5.2f seconds",
-	          double(cpuTime * 100) / double(totalTime), double(overhead * 100) / double(totalTime), runningTime);
+	          double(cpuTime * 100) / double(totalTime), double(overhead * 100) / double(totalTime), getSystemTime());
 	resetStats();
-}
-Time getTimerValueSeconds(int timerNo) {
-	Time seconds = getTimerValue(timerNo) * ONE_OVER_CLOCK;
-	return seconds;
-}
-/// return a monotonic timer value in seconds from when the task manager started
-Time TaskManager::getSecondsFromStart() {
-	auto timeNow = getTimerValueSeconds(0);
-	if (timeNow < lastTime) {
-		runningTime += rollTime;
-	}
-	runningTime += timeNow - lastTime;
-	lastTime = timeNow;
-	return runningTime;
 }

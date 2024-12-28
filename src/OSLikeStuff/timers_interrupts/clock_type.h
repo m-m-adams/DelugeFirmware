@@ -1,6 +1,9 @@
 //
 // Created by Mark Adams on 2024-11-23.
 //
+#ifndef DELUGE_CLOCK_TYPE_H
+#define DELUGE_CLOCK_TYPE_H
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -44,3 +47,4 @@ public:
 };
 
 #endif
+#endif // DELUGE_CLOCK_TYPE_H

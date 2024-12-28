@@ -36,7 +36,6 @@ struct TaskManager {
 	void printStats();
 	bool checkConditionalTasks();
 	bool yield(RunCondition until, Time timeout = 0);
-	Time getSecondsFromStart();
 
 	void ignoreForStats();
 	void setNextRunTimeforCurrentTask(Time seconds);
@@ -60,9 +59,7 @@ private:
 	Time lastPrintedStats{0};
 
 	TaskID currentID{0};
-	// for time tracking with rollover
-	Time lastTime{0};
-	Time runningTime{0};
+
 	void resetStats();
 	// needs to be volatile, GCC misses that the handle call can call ignoreForStats and optimizes the check away
 	volatile bool countThisTask{true};

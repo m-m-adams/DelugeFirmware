@@ -30,6 +30,12 @@ typedef void (*TaskHandle)();
 typedef bool (*RunCondition)();
 typedef int8_t TaskID;
 
+struct TCB;
+
+// Real time tasks are responsible for yielding until their next run time at the end of each call - they are not called
+// repeatedly
+struct TCB* addRealTimeTask(TaskHandle task, uint8_t priority, size_t stackSize, const char* name);
+
 /// Schedule a task that will be called at a regular interval.
 ///
 /// The scheduler will try to run the task at a regular cadence such that the time between start of calls to the

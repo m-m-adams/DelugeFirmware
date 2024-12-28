@@ -3,6 +3,7 @@
 //
 #include "OSLikeStuff/scheduler_api.h"
 #include "OSLikeStuff/task_scheduler/task_scheduler.h"
+#include "timers_interrupts/system_clock.h"
 
 extern TaskManager taskManager;
 
@@ -47,6 +48,6 @@ void removeTask(TaskID id) {
 	return taskManager.removeTask(id);
 }
 double getSystemTime() {
-	return taskManager.getSecondsFromStart();
+	return getSecondsFromStart();
 }
 }
