@@ -707,8 +707,6 @@ uint32_t Voice::getLocalLFOPhaseIncrement() {
                                 bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged,
                                 bool doLPF, bool doHPF, int32_t externalPitchAdjust) {
 
-	GeneralMemoryAllocator::get().checkStack("Voice::render");
-
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 	Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
 

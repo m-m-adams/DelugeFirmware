@@ -619,9 +619,7 @@ void renderAudioForStemExport(size_t numSamples);
 	                    & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
 
 	if (numSamples <= (10 * numRoutines)) {
-		if (!numRoutines) {
-			ignoreForStats();
-		}
+
 		return;
 	}
 #if AUTOMATED_TESTER_ENABLED
@@ -1048,27 +1046,21 @@ void scheduleMidiGateOutISR(uint32_t saddrPosAtStart, int32_t unadjustedNumSampl
 }
 
 void routine() {
-	logAction("AudioDriver::routine");
-	// D_PRINTLN("called audio routine");
-	if (audioRoutineLocked) {
-		logAction("AudioDriver::routine locked");
-		ignoreForStats();
-		return; // Prevents this from being called again from inside any e.g. memory allocation routines that get
-		        // called from within this!
-	}
+	yieldCPU();
 }
-uint32_t AudioStack[8000] = {0};
+__attribute__((aligned(16))) uint32_t AudioStack[8000] = {0};
 void AudioThread() {
-
-	audioRoutineLocked = true;
 
 	while (true) {
 		if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
-
+			audioFileManager.loadAnyEnqueuedClusters(128, false);
+			audioRoutineLocked = true;
 			routine_();
+			audioRoutineLocked = false;
 			routineBeenCalled = true;
-			Time nextCall = getSecondsFromStart() + Time(32. / 44100.);
-			D_PRINTLN("waiting until %f", nextCall);
+			static Time delay = Time(2 / 44100.);
+			Time nextCall = getSecondsFromStart() + delay;
+			doSomeOutputting();
 			rtScheduler.delayUntil(nextCall);
 		}
 		else {

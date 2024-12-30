@@ -12,20 +12,20 @@ extern "C" {
 
 TCB* CurrentTCB = nullptr;
 void RTScheduler::scheduleSwitch(Time time) {
-	DISABLE_ALL_INTERRUPTS();
-
-	wakeTime = time;
-	int64_t ticks = time - getSecondsFromStart();
-	if (ticks < 0) {
-		ticks = 0.0005 * DELUGE_CLOCKS_PERf; // if we don't have a time yet make sure we're back in .5ms
-	}
-	disableTimer(1);
-	// this breaks if we want to wait more than 2 minutes but we probably don't?
-	setTimerValue(1, ticks);
-	// just let it count - a full loop is 2 minutes or so and we'll handle that case manually
-	setOperatingMode(1, TIMER, true);
-	enableTimer(1);
-	ENABLE_INTERRUPTS();
+	//	DISABLE_ALL_INTERRUPTS();
+	//
+	//	wakeTime = time;
+	//	int64_t ticks = time - getSecondsFromStart();
+	//	if (ticks < 0) {
+	//		ticks = 0.0005 * DELUGE_CLOCKS_PERf; // if we don't have a time yet make sure we're back in .5ms
+	//	}
+	//	disableTimer(1);
+	//	// this breaks if we want to wait more than 2 minutes but we probably don't?
+	//	setTimerValue(1, ticks);
+	//	// just let it count - a full loop is 2 minutes or so and we'll handle that case manually
+	//	setOperatingMode(1, TIMER, true);
+	//	enableTimer(1);
+	//	ENABLE_INTERRUPTS();
 }
 void RTScheduler::switchContext() {
 	wakeTime = std::numeric_limits<dTime>::max();
@@ -138,20 +138,16 @@ extern void ContextSwitch(void);
 }
 void RTScheduler::startWithCurrentThread() {
 
-	TCB newTCB = TCB(&program_stack_end, &program_stack_start - &program_stack_end, 100);
+	TCB newTCB = TCB(&program_stack_end, &program_stack_end - &program_stack_start, 100);
 	rtTaskArray.push_back(newTCB);
 	CurrentTCB = &rtTaskArray.back();
-	setupAndEnableInterrupt(reinterpret_cast<void (*)(uint32_t)>(ContextSwitch), INTC_ID_OSTM1TINT, 0);
-	yield();
-}
-void RTScheduler::yield() {
-	// we'll just go ahead and call the scheduler now, it'll choose something to run instead of us
-	__asm volatile("SWI 0" ::: "memory");
+	// setupAndEnableInterrupt(reinterpret_cast<void (*)(uint32_t)>(ContextSwitch), INTC_ID_OSTM1TINT, 0);
+	yieldCPU();
 }
 void RTScheduler::delayUntil(Time time) {
 	CurrentTCB->nextWakeTime = time;
 	CurrentTCB->state = ThreadState::waiting;
-	yield();
+	yieldCPU();
 }
 
 RTScheduler rtScheduler;
@@ -159,5 +155,12 @@ RTScheduler rtScheduler;
 extern "C" {
 void vTaskSwitchContext(void) {
 	rtScheduler.switchContext();
+}
+
+void yieldCPU(void) {
+	if (CurrentTCB) {
+		// we'll just go ahead and call the scheduler now, it'll choose something to run instead of us
+		__asm volatile("SWI 0" ::: "memory");
+	}
 }
 }

@@ -16,6 +16,7 @@
  */
 
 #include "memory/general_memory_allocator.h"
+#include "RealTimeScheduler/RTScheduler.hpp"
 #include "definitions_cxx.hpp"
 #include "io/debug/log.h"
 #include "memory/stealable.h"
@@ -55,12 +56,9 @@ void GeneralMemoryAllocator::checkStack(char const* caller) {
 
 	char a;
 
-	int32_t distance = (int32_t)&a - (uint32_t)&program_stack_start;
+	int32_t distance = (int32_t)&a - (uint32_t)CurrentTCB->bottomOfStack + (uint32_t)CurrentTCB->stackSize;
 	if (distance < closestDistance) {
-		closestDistance = distance;
 
-		D_PRINTLN("%d bytes in stack %d free bytes in stack at %s", (uint32_t)&program_stack_end - (int32_t)&a,
-		          distance, caller);
 		if (distance < 200) {
 			FREEZE_WITH_ERROR("E338");
 			D_PRINTLN("COLLISION");

@@ -288,6 +288,7 @@ void TaskManager::start(Time duration) {
 				printStats();
 			}
 		}
+		yieldCPU();
 	}
 }
 void TaskManager::startClock() {

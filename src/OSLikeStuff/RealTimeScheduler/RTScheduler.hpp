@@ -19,12 +19,13 @@ enum class ThreadState {
 struct TCB {
 	volatile uint32_t* topOfStack{0};
 	uint32_t* bottomOfStack{0};
+	size_t stackSize{0};
 	Time nextWakeTime{0};
 	uint8_t priority;
 	ThreadState state{ThreadState::ready};
 
 	TCB(uint32_t* topOfStack, size_t stackSize, uint8_t priority)
-	    : topOfStack(topOfStack), bottomOfStack(topOfStack - stackSize), priority(priority) {}
+	    : topOfStack(topOfStack), bottomOfStack(topOfStack - stackSize), priority(priority), stackSize(stackSize) {}
 	TCB() = default;
 	// priorities are descending (0 is max)
 	bool operator<(const TCB& another) const { return priority > another.priority; }
@@ -56,7 +57,6 @@ public:
 
 	void addThread(uint32_t* stackTop, size_t stackSize, TaskHandle function, uint8_t priority);
 	void startWithCurrentThread();
-	void yield();
 	void delayUntil(Time time);
 };
 
@@ -64,6 +64,7 @@ extern RTScheduler rtScheduler;
 
 extern "C" {
 extern void vTaskSwitchContext(void);
+extern void yieldCPU(void);
 }
 
 #endif // DELUGE_RTSCHEDULER_HPP

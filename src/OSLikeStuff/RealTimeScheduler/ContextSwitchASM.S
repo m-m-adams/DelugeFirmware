@@ -55,9 +55,9 @@
 
     /* Save the floating point context */
     FMRX  R1,  FPSCR
-    PUSH  {R1}
     VPUSH {D0-D15}
     VPUSH {D16-D31}
+    PUSH  {R1}
 
     /* Save the stack pointer in the TCB. */
     LDR     R0, CurrentTCBConst
@@ -74,9 +74,9 @@
     LDR     SP, [R1]
 
     /* Restore the floating point context*/
+    POP   {R0}
     VPOP  {D16-D31}
     VPOP  {D0-D15}
-    POP   {R0}
     VMSR  FPSCR, R0
 
     /* Restore all system mode registers other than the SP (which is already
