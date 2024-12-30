@@ -9,20 +9,6 @@ bool running = false;
 Time lastTime = 0;
 Time runningTime = 0;
 
-Time getTimerValueSeconds(int timerNo) {
-	Time seconds = getTimerValue(timerNo) * ONE_OVER_CLOCK;
-	return seconds;
-}
-/// return a monotonic timer value in seconds from when the task manager started
-Time getSecondsFromStart() {
-	auto timeNow = getTimerValueSeconds(0);
-	if (timeNow < lastTime) {
-		runningTime += rollTime;
-	}
-	runningTime += timeNow - lastTime;
-	lastTime = timeNow;
-	return runningTime;
-}
 void startSystemClock() {
 	if (!running) {
 		disableTimer(0);
@@ -32,5 +18,23 @@ void startSystemClock() {
 		enableTimer(0);
 		running = true;
 	}
+}
+Time getTimerValueSeconds(int timerNo) {
+	if (!running) {
+		startSystemClock();
+	}
+	Time seconds = getTimerValue(timerNo) * ONE_OVER_CLOCK;
+	return seconds;
+}
+
+/// return a monotonic timer value in seconds from when the task manager started
+Time getSecondsFromStart() {
+	auto timeNow = getTimerValueSeconds(0);
+	if (timeNow < lastTime) {
+		runningTime += rollTime;
+	}
+	runningTime += timeNow - lastTime;
+	lastTime = timeNow;
+	return runningTime;
 }
 }

@@ -18,6 +18,7 @@
 #include "deluge.h"
 
 #include "RZA1/sdhi/inc/sdif.h"
+#include "RealTimeScheduler/RTScheduler.hpp"
 #include "definitions_cxx.hpp"
 #include "drivers/pic/pic.h"
 #include "gui/ui/audio_recorder.h"
@@ -573,7 +574,8 @@ void registerTasks() {
 
 	// 0-9: High priority (10 for dyn tasks)
 	uint8_t p = 0;
-	addRepeatingTask(&(AudioEngine::routine), p++, 0.00001, 16 / 44100., 24 / 44100., "audio  routine");
+	// addRepeatingTask(&(AudioEngine::routine), p++, 0.00001, 16 / 44100., 24 / 44100., "audio  routine");
+	rtScheduler.addThread(AudioEngine::AudioStack, 8000, AudioEngine::AudioThread, 0);
 	// this one runs quickly and frequently to check for encoder changes
 	addRepeatingTask([]() { encoders::readEncoders(); }, p++, 0.0005, 0.001, 0.001, "read encoders");
 	// formerly part of audio routine, updates midi and clock

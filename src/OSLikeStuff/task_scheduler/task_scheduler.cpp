@@ -23,6 +23,7 @@
 #include <iostream>
 
 #if !IN_UNIT_TESTS
+#include "RealTimeScheduler/RTScheduler.hpp"
 #include "memory/general_memory_allocator.h"
 #include "timers_interrupts/system_clock.h"
 #endif
@@ -270,6 +271,7 @@ void TaskManager::start(Time duration) {
 	else {
 		mustEndBefore = -1;
 	}
+	rtScheduler.startWithCurrentThread();
 
 	while (duration == Time(0) || getSecondsFromStart() < startTime + duration) {
 		Time newTime = getSecondsFromStart();

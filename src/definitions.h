@@ -48,6 +48,9 @@ extern void freezeWithError(char const* errmsg);
 /// Runs as 32.792 ticks per microsecond (33.792 MHz)
 #define TIMER_SYSTEM_SUPERFAST 1
 
+/// runs as 32.792 as well, but used to generate context switch interrupts
+#define TIMER_CONTEXT_SWITCH 3
+
 #define SSI_TX_BUFFER_NUM_SAMPLES 128
 #define SSI_RX_BUFFER_NUM_SAMPLES 2048
 #define NUM_MONO_INPUT_CHANNELS (NUM_STEREO_INPUT_CHANNELS * 2)

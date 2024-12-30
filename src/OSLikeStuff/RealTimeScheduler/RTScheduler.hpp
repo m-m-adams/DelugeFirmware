@@ -4,87 +4,66 @@
 
 #ifndef DELUGE_RTSCHEDULER_HPP
 #define DELUGE_RTSCHEDULER_HPP
-#include "RZA1/ostm/ostm.h"
+
 #include "scheduler_api.h"
 #include "timers_interrupts/system_clock.h"
+#include "util/container/static_vector.hpp"
 #include <array>
 #include <optional>
 
-enum class State {
+enum class ThreadState {
 	ready,
 	waiting,
 };
 
-class TCB {
-	volatile uint32_t* topOfStack{nullptr};
-	uint32_t* bottomOfStack{nullptr};
-	size_t stackSize{0};
+struct TCB {
+	volatile uint32_t* topOfStack{0};
+	uint32_t* bottomOfStack{0};
 	Time nextWakeTime{0};
-	uint8_t priority{255};
-	State state{State::waiting};
+	uint8_t priority;
+	ThreadState state{ThreadState::ready};
 
-public:
+	TCB(uint32_t* topOfStack, size_t stackSize, uint8_t priority)
+	    : topOfStack(topOfStack), bottomOfStack(topOfStack - stackSize), priority(priority) {}
+	TCB() = default;
 	// priorities are descending (0 is max)
 	bool operator<(const TCB& another) const { return priority > another.priority; }
-	bool isRunnable() { return state == State::ready; }
-	void endWait() { state = State::ready; }
+	bool isRunnable() { return state == ThreadState::ready; }
+	void endWait() {
+		state = ThreadState::ready;
+		nextWakeTime = Time(0);
+	}
 	std::optional<Time> getWakeTime() {
-		if (state == State::waiting) {
+		if (state == ThreadState::waiting) {
 			return nextWakeTime;
 		}
 		return {};
 	};
-	void setWakeTime(Time time) { nextWakeTime = time; }
 };
 
 extern TCB* CurrentTCB;
 
 class RTScheduler {
-	std::array<TCB, 4> rtTaskArray{};
-	Time wakeTime;
-	void scheduleSwitch(Time time) {
-		if (time > wakeTime) {
-			return; // we'll wake up before then anyway
-		}
-		wakeTime = time;
-		int64_t ticks = time - getSecondsFromStart();
-		disableTimer(1);
-		// this breaks if we want to wait more than 2 minutes but we probably don't?
-		setTimerValue(1, ticks);
-		// just let it count - a full loop is 2 minutes or so and we'll handle that case manually
-		setOperatingMode(1, TIMER, true);
-		enableTimer(1);
-	}
-	void switchContext() {
-		Time nextSwitch = 0;
-		Time currentTime = getSecondsFromStart();
-		CurrentTCB = rtTaskArray.data();
-		for (TCB& tcb : rtTaskArray) {
-			// if it's waiting and the current time is passed its wake time
-			// (e.g. it was too low priority to wake on time)
-			if (tcb.getWakeTime() < currentTime) {
-				tcb.endWait();
-			}
-			// then if it's a higher priority
-			if (*CurrentTCB < tcb) {
-				// switch to it
-				if (tcb.isRunnable()) {
-					CurrentTCB = &tcb;
-					nextSwitch = 0;
-				}
-				// or schedule a switch to it
-				else {
-					auto n = tcb.getWakeTime();
-					if (tcb.getWakeTime() < wakeTime) {
-						nextSwitch = n.value();
-					}
-				}
-			}
-		}
-		if (nextSwitch > Time(0)) {
-			scheduleSwitch(nextSwitch);
-		}
-	}
+
+	deluge::static_vector<TCB, 8> rtTaskArray;
+	Time wakeTime{std::numeric_limits<dTime>::max()};
+	void scheduleSwitch(Time time);
+	uint32_t* initializeStack(uint32_t* stackTop, TaskHandle function);
+
+public:
+	RTScheduler() = default;
+	void switchContext();
+
+	void addThread(uint32_t* stackTop, size_t stackSize, TaskHandle function, uint8_t priority);
+	void startWithCurrentThread();
+	void yield();
+	void delayUntil(Time time);
 };
+
+extern RTScheduler rtScheduler;
+
+extern "C" {
+extern void vTaskSwitchContext(void);
+}
 
 #endif // DELUGE_RTSCHEDULER_HPP

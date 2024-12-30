@@ -53,6 +53,7 @@ void setupAndEnableInterrupt(void (*handler)(uint32_t), uint16_t interruptID, ui
 	R_INTC_SetPriority(interruptID, priority);
 	R_INTC_Enable(interruptID);
 }
+int32_t criticalDepth = 0;
 #ifdef __cplusplus
 }
 #endif

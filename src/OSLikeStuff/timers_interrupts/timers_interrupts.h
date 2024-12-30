@@ -29,9 +29,10 @@ extern "C" {
 // ISB redoes the prefetch, ensuring that older instructions aren't used
 // ref http://www.rdrop.com/users/paulmck/scalability/paper/whymb.2010.07.23a.pdf
 // in future if we start using user mode this won't work from there
-
+extern int32_t criticalDepth;
 /// disable all interrupts - must be in system mode
 static inline __attribute__((no_instrument_function)) void DISABLE_ALL_INTERRUPTS() {
+	criticalDepth += 1;
 	// memory creates a memory barrier in GCC to avoid reordering
 	// http://www.ibiblio.org/gferg/ldp/GCC-Inline-Assembly-HOWTO.html#ss5.3
 	__asm volatile("CPSID i" ::: "memory");
@@ -41,6 +42,11 @@ static inline __attribute__((no_instrument_function)) void DISABLE_ALL_INTERRUPT
 
 /// enable all interrupts - must be in system mode
 static inline __attribute__((no_instrument_function)) void ENABLE_INTERRUPTS() {
+	criticalDepth -= 1;
+	if (criticalDepth > 0) {
+		return;
+	}
+	criticalDepth = 0;
 	__asm volatile("CPSIE i" ::: "memory");
 	__asm volatile("DSB");
 	__asm volatile("ISB");
@@ -54,7 +60,7 @@ void clearIRQInterrupt(int irqNumber);
 /// Timer 0 -> TIMER_SYSTEM_SUPERFAST (used by USB drivers)
 /// Timer 1 -> TIMER_SYSTEM_FAST (used by PIC and audio timing)
 /// Timer 2 -> TIMER_MIDI_GATE_OUTPUT (used to schedule gate and clock outputs betweem audio renders)
-/// Timer 3 -> unused
+/// Timer 3 -> TIMER_CONTEXT_SWITCH (used to schedule context switches to audio rendering)
 /// Timer 4 -> TIMER_SYSTEM_SLOW (used by OLED and USB)
 void setupTimerWithInterruptHandler(int timerNo, int scale, void (*handler)(uint32_t intSense), uint8_t priority);
 void setupRunningClock(int timer, int preScale);

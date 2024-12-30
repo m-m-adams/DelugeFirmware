@@ -236,7 +236,6 @@ Finished:
 .global abort
 abort:
 undefined_handler:
-svc_handler:
 abort_handler:
 prefetch_handler:
 reserved_handler:
@@ -247,4 +246,8 @@ reserved_handler:
     MOV     r3, #0              /* USR SP - 0 since we don't use user mode */
     LDR  r12,=handle_cpu_fault  /* Load address of handle_cpu_fault */
     BX   r12                    /* Jump to handle_cpu_fault without link */
+
+svc_handler:
+    LDR  r12,=ContextSwitch  /* Load address of ContextSwitch */
+    BX   r12
 .end

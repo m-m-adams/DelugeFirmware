@@ -129,7 +129,9 @@ class Reverb;
 #define DO_AUDIO_LOG 0
 
 namespace AudioEngine {
+extern uint32_t AudioStack[8000];
 void routine();
+void AudioThread();
 void routineWithClusterLoading(bool mayProcessUserActionsBetween = false);
 
 void init();

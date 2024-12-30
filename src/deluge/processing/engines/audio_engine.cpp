@@ -16,6 +16,7 @@
  */
 
 #include "processing/engines/audio_engine.h"
+#include "RealTimeScheduler/RTScheduler.hpp"
 #include "definitions_cxx.hpp"
 #include "dsp/reverb/reverb.hpp"
 #include "dsp/timestretch/time_stretcher.h"
@@ -55,6 +56,7 @@
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
+#include "timers_interrupts/system_clock.h"
 #include "timers_interrupts/timers_interrupts.h"
 #include "util/functions.h"
 #include "util/misc.h"
@@ -123,7 +125,7 @@ constexpr int32_t kNumTimeStretchersStatic = 48;
 constexpr int32_t numSamplesLimit = 80;
 // used for decisions in rendering engine
 constexpr int32_t direnessThreshold = numSamplesLimit - 30;
-
+Time lastRunTime = 0;
 // 7 can overwhelm SD bandwidth if we schedule the loads badly. It could be improved by starting future loads
 // earlier for now we provide an outlet in culling a single voice if we're under MIN_VOICES and still getting close
 // to the limit
@@ -546,7 +548,7 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 /// set the direness level and cull any voices
 inline void setDireness(size_t numSamples) { // Consider direness and culling - before increasing the number of samples
 	// number of samples it took to do the last render
-	auto dspTime = (int32_t)(getAverageRunTimeforCurrentTask() * 44100.);
+	auto dspTime = (int32_t)(double(lastRunTime) * 44100.);
 	size_t nonDSP = numSamples - dspTime;
 	// we don't care about the number that were rendered in the last go, only the ones taken by the first routine call
 	numSamples = std::max<int32_t>(dspTime - (int32_t)(numRoutines * numSamples), 0);
@@ -608,13 +610,8 @@ void renderAudio(size_t numSamples);
 void renderAudioForStemExport(size_t numSamples);
 /// inner loop of audio rendering, deliberately not in header
 [[gnu::hot]] void routine_() {
-
-#ifndef USE_TASK_MANAGER
-	playbackHandler.routine();
-#endif
+	Time start = getSecondsFromStart();
 	// At this point, there may be MIDI, including clocks, waiting to be sent.
-
-	GeneralMemoryAllocator::get().checkStack("AudioDriver::routine");
 
 	saddr = (uint32_t)(getTxBufferCurrentPlace());
 	uint32_t saddrPosAtStart = saddr >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE);
@@ -672,6 +669,8 @@ void renderAudioForStemExport(size_t numSamples);
 	audioSampleTimer += numSamples;
 
 	bypassCulling = false;
+	Time stop = getSecondsFromStart();
+	lastRunTime = stop - start;
 }
 void renderAudio(size_t numSamples) {
 	memset(&renderingBuffer, 0, numSamples * sizeof(StereoSample));
@@ -1049,56 +1048,55 @@ void scheduleMidiGateOutISR(uint32_t saddrPosAtStart, int32_t unadjustedNumSampl
 }
 
 void routine() {
-
 	logAction("AudioDriver::routine");
-
+	// D_PRINTLN("called audio routine");
 	if (audioRoutineLocked) {
 		logAction("AudioDriver::routine locked");
 		ignoreForStats();
 		return; // Prevents this from being called again from inside any e.g. memory allocation routines that get
 		        // called from within this!
 	}
+}
+uint32_t AudioStack[8000] = {0};
+void AudioThread() {
 
 	audioRoutineLocked = true;
 
-	numRoutines = 0;
-	if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
-		while (doSomeOutputting() && numRoutines < 2) {
+	while (true) {
+		if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
 
-#ifndef USE_TASK_MANAGER
-			if (numRoutines > 0) {
-				deluge::hid::encoders::readEncoders();
-				deluge::hid::encoders::interpretEncoders(true);
-			}
-#endif
 			routine_();
 			routineBeenCalled = true;
-			numRoutines += 1;
+			Time nextCall = getSecondsFromStart() + Time(32. / 44100.);
+			D_PRINTLN("waiting until %f", nextCall);
+			rtScheduler.delayUntil(nextCall);
 		}
-	}
-	else {
-		if (!sdRoutineLock) {
-			auto timeNow = getSystemTime();
-			while (getSystemTime() < timeNow + 32 / 44100.) {
-				size_t numSamples = 32;
-				int32_t timeWithinWindowAtWhichMIDIOrGateOccurs;
-				tickSongFinalizeWindows(numSamples, timeWithinWindowAtWhichMIDIOrGateOccurs);
+		else {
+			if (!sdRoutineLock) {
+				auto timeNow = getSystemTime();
+				while (getSystemTime() < timeNow + 32 / 44100.) {
+					size_t numSamples = 32;
+					int32_t timeWithinWindowAtWhichMIDIOrGateOccurs;
+					tickSongFinalizeWindows(numSamples, timeWithinWindowAtWhichMIDIOrGateOccurs);
 
-				numSamplesLastTime = numSamples;
-				renderAudioForStemExport(numSamples);
-				audioSampleTimer += numSamples;
-				doSomeOutputting();
-				// gross and hacky way to make sure the audio recorder writes all of its data so it can't be stolen
-				while (audioRecorder.recorder->firstUnwrittenClusterIndex
-				       < audioRecorder.recorder->currentRecordClusterIndex) {
-					doRecorderCardRoutines();
+					numSamplesLastTime = numSamples;
+					renderAudioForStemExport(numSamples);
+					audioSampleTimer += numSamples;
+					doSomeOutputting();
+					// gross and hacky way to make sure the audio recorder writes all of its data so it can't be stolen
+					while (audioRecorder.recorder->firstUnwrittenClusterIndex
+					       < audioRecorder.recorder->currentRecordClusterIndex) {
+						doRecorderCardRoutines();
+					}
+
+					audioFileManager.loadAnyEnqueuedClusters(128, false);
 				}
-
-				audioFileManager.loadAnyEnqueuedClusters(128, false);
 			}
+			Time nextCall = getSecondsFromStart() + Time(32. / 44100.);
+			D_PRINTLN("waiting until %f", nextCall);
+			rtScheduler.delayUntil(nextCall);
 		}
 	}
-	audioRoutineLocked = false;
 }
 
 int32_t getNumSamplesLeftToOutputFromPreviousRender() {
