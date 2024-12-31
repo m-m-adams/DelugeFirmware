@@ -1,7 +1,4 @@
 /*
- * FreeRTOS Kernel <DEVELOPMENT BRANCH>
- * Copyright (C) 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -23,7 +20,7 @@
  *
  * https://www.FreeRTOS.org
  * https://github.com/FreeRTOS
- * Stripped down and slightly edited version of the cortex A9 free rtos port assembly
+ * Based on the cortex A9 free rtos port assembly
  */
     .eabi_attribute Tag_ABI_align_preserved, 1
     .text
@@ -32,11 +29,6 @@
     .set SYS_MODE,  0x1f
     .set SVC_MODE,  0x13
     .set IRQ_MODE,  0x12
-
-    /* Hardware registers. */
-    .extern ulICCIAR
-    .extern ulICCEOIR
-    .extern ulICCPMR
 
     /* Variables and functions. */
     .extern CurrentTCB
@@ -100,24 +92,12 @@ ContextSwitch:
     AND     r2, r2, #4
     SUB     sp, sp, r2
 
-    LDR R0, vTaskSwitchContextConst
+    LDR R0, ChooseNextThreadConst
     BLX R0
 
     RESTORE_CONTEXT
 
 
-/******************************************************************************
- * RestoreTaskContext is used to start the scheduler.
- *****************************************************************************/
-.type RestoreTaskContext, %function
-RestoreTaskContext:
-    /* Switch to system mode. */
-    CPS     #SYS_MODE
-    RESTORE_CONTEXT
-
-
-
-
-vTaskSwitchContextConst: .word vTaskSwitchContext
+ChooseNextThreadConst: .word ChooseNextThread
 CurrentTCBConst: .word CurrentTCB
 .end

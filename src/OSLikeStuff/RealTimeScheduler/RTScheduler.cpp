@@ -133,9 +133,6 @@ void RTScheduler::addThread(uint32_t* stackTop, size_t stackSize, TaskHandle fun
 }
 extern uint32_t program_stack_start;
 extern uint32_t program_stack_end;
-extern "C" {
-extern void ContextSwitch(void);
-}
 void RTScheduler::startWithCurrentThread() {
 
 	TCB newTCB = TCB(&program_stack_end, &program_stack_end - &program_stack_start, 100);
@@ -153,7 +150,7 @@ void RTScheduler::delayUntil(Time time) {
 RTScheduler rtScheduler;
 
 extern "C" {
-void vTaskSwitchContext(void) {
+void ChooseNextThread(void) {
 	rtScheduler.switchContext();
 }
 

@@ -63,7 +63,7 @@ public:
 extern RTScheduler rtScheduler;
 
 extern "C" {
-extern void vTaskSwitchContext(void);
+extern void ChooseNextThread(void);
 extern void yieldCPU(void);
 }
 
