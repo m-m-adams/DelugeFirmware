@@ -236,8 +236,11 @@ Finished:
 .global abort
 abort:
 undefined_handler:
+    bkpt 1
 abort_handler:
+    bkpt 1
 prefetch_handler:
+    bkpt 1
 reserved_handler:
     CPSID   i                   /* Disable interrupt handling to preserve stack */
     MOV     r0, LR              /* Store SYS LR value as first function parameter */

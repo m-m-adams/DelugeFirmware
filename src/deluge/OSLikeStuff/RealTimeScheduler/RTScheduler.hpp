@@ -23,9 +23,11 @@ struct TCB {
 	Time nextWakeTime{0};
 	uint8_t priority;
 	ThreadState state{ThreadState::ready};
+	const char* name{nullptr};
 
-	TCB(uint32_t* topOfStack, size_t stackSize, uint8_t priority)
-	    : topOfStack(topOfStack), bottomOfStack(topOfStack - stackSize), priority(priority), stackSize(stackSize) {}
+	TCB(uint32_t* topOfStack, size_t stackSize, uint8_t priority, const char* name)
+	    : topOfStack(topOfStack), bottomOfStack(topOfStack - stackSize), priority(priority), stackSize(stackSize),
+	      name{name} {}
 	TCB() = default;
 	// priorities are descending (0 is max)
 	bool operator<(const TCB& another) const { return priority > another.priority; }
@@ -50,6 +52,7 @@ class RTScheduler {
 	Time wakeTime{std::numeric_limits<dTime>::max()};
 	void scheduleSwitch(Time time);
 	uint32_t* initializeStack(uint32_t* stackTop, TaskHandle function);
+	bool running{false};
 
 public:
 	RTScheduler() = default;
@@ -61,10 +64,5 @@ public:
 };
 
 extern RTScheduler rtScheduler;
-
-extern "C" {
-extern void ChooseNextThread(void);
-extern void yieldCPU(void);
-}
 
 #endif // DELUGE_RTSCHEDULER_HPP

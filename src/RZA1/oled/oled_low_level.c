@@ -19,11 +19,11 @@
 #include "definitions.h"
 #include "deluge/drivers/oled/oled.h"
 
-#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
 #include "RZA1/compiler/asm/inc/asm.h"
 #include "RZA1/gpio/gpio.h"
 #include "RZA1/mtu/mtu.h"
 #include "RZA1/uart/sio_char.h"
+#include "deluge/OSLikeStuff/timers_interrupts/timers_interrupts.h"
 #include "deluge/drivers/dmac/dmac.h"
 #include "deluge/drivers/rspi/rspi.h"
 #include "deluge/processing/engines/cv_engine_c_interface.h"

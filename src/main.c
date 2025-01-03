@@ -131,6 +131,10 @@ int main(void) {
 	INTC.ICR1 = 0b0101010101010101;
 	// this is the same priority as the midi/gate interrupt despite the comment saying they need to be different
 	setupAndEnableInterrupt(triggerClockInputHandler, IRQ_INTERRUPT_0 + 6, 5);
+	// low priority so it doesn't mess with clocks/usb, we can just switch whenever everything else is done
+	// if this goes off it's fine, it won't do anything until the scheduler is setup. We need it registered before
+	// interrupts turn on though
+	setupAndEnableInterrupt(ContextSwitchInterrupt, INTC_ID_OSTM1TINT, 30);
 	ENABLE_INTERRUPTS();
 	deluge_main();
 

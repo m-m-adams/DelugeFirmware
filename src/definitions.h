@@ -1,5 +1,5 @@
 #pragma once
-#include "OSLikeStuff/fault_handler/fault_handler.h" // IWYU pragma: export (for expanding the freeze with error macro)
+#include "Deluge/OSLikeStuff/fault_handler/fault_handler.h" // IWYU pragma: export (for expanding the freeze with error macro)
 #include "RZA1/cpu_specific.h"
 #include "RZA1/system/r_typedefs.h"
 

@@ -21,6 +21,7 @@
 #include "io/debug/log.h"
 #include "memory/stealable.h"
 #include "processing/engines/audio_engine.h"
+#include "timers_interrupts/timers_interrupts.h"
 
 // TODO: Check if these have the right size
 char emptySpacesMemory[sizeof(EmptySpaceRecord) * 512];
@@ -87,10 +88,11 @@ void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
 		return nullptr; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they
 		                // could extend the stack an unspecified amount
 	}
-
+	DISABLE_ALL_INTERRUPTS();
 	lock = true;
 	void* address = regions[MEMORY_REGION_EXTERNAL].alloc(requiredSize, false, NULL);
 	lock = false;
+	ENABLE_INTERRUPTS();
 	if (!address) {
 		// FREEZE_WITH_ERROR("M998");
 		return nullptr;
@@ -98,7 +100,9 @@ void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
 	return address;
 }
 void GeneralMemoryAllocator::deallocExternal(void* address) {
-	return regions[MEMORY_REGION_EXTERNAL].dealloc(address);
+	DISABLE_ALL_INTERRUPTS();
+	regions[MEMORY_REGION_EXTERNAL].dealloc(address);
+	ENABLE_INTERRUPTS();
 }
 
 // Watch the heck out - in the older V3.1 branch, this had one less argument - makeStealable was missing - so in code
@@ -118,10 +122,11 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 	if (!makeStealable) {
 		// If internal is allowed, try that first
 		if (mayUseOnChipRam) {
+			DISABLE_ALL_INTERRUPTS();
 			lock = true;
 			address = regions[MEMORY_REGION_INTERNAL].alloc(requiredSize, makeStealable, thingNotToStealFrom);
 			lock = false;
-
+			ENABLE_INTERRUPTS();
 			if (address) {
 				return address;
 			}
@@ -130,10 +135,11 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 		}
 
 		// Second try external region
+		DISABLE_ALL_INTERRUPTS();
 		lock = true;
 		address = regions[MEMORY_REGION_EXTERNAL].alloc(requiredSize, makeStealable, thingNotToStealFrom);
 		lock = false;
-
+		ENABLE_INTERRUPTS();
 		if (address) {
 			return address;
 		}
@@ -149,10 +155,11 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 		while (1) {}
 	}
 #endif
-
+	DISABLE_ALL_INTERRUPTS();
 	lock = true;
 	address = regions[MEMORY_REGION_STEALABLE].alloc(requiredSize, makeStealable, thingNotToStealFrom);
 	lock = false;
+	ENABLE_INTERRUPTS();
 	return address;
 }
 
@@ -198,11 +205,12 @@ void GeneralMemoryAllocator::extend(void* address, uint32_t minAmountToExtend, u
 	if (lock) {
 		return;
 	}
-
+	DISABLE_ALL_INTERRUPTS();
 	lock = true;
 	regions[getRegion(address)].extend(address, minAmountToExtend, idealAmountToExtend, getAmountExtendedLeft,
 	                                   getAmountExtendedRight, thingNotToStealFrom);
 	lock = false;
+	ENABLE_INTERRUPTS();
 }
 
 uint32_t GeneralMemoryAllocator::extendRightAsMuchAsEasilyPossible(void* address) {

@@ -11,23 +11,25 @@ extern "C" {
 #include "timers_interrupts/timers_interrupts.h"
 
 TCB* CurrentTCB = nullptr;
+constexpr int delay0_5ms = 0.0005 * DELUGE_CLOCKS_PERf;
 void RTScheduler::scheduleSwitch(Time time) {
-	//	DISABLE_ALL_INTERRUPTS();
-	//
-	//	wakeTime = time;
-	//	int64_t ticks = time - getSecondsFromStart();
-	//	if (ticks < 0) {
-	//		ticks = 0.0005 * DELUGE_CLOCKS_PERf; // if we don't have a time yet make sure we're back in .5ms
-	//	}
-	//	disableTimer(1);
-	//	// this breaks if we want to wait more than 2 minutes but we probably don't?
-	//	setTimerValue(1, ticks);
-	//	// just let it count - a full loop is 2 minutes or so and we'll handle that case manually
-	//	setOperatingMode(1, TIMER, true);
-	//	enableTimer(1);
-	//	ENABLE_INTERRUPTS();
+
+	wakeTime = time;
+	int64_t ticks = time - getSecondsFromStart();
+	if (ticks < delay0_5ms) {
+		ticks = delay0_5ms; // if we don't have a time yet make sure we're back in .5ms
+	}
+	disableTimer(1);
+	setOperatingMode(1, TIMER, false);
+	// this breaks if we want to wait more than 2 minutes but we probably don't?
+	setTimerValue(1, ticks);
+	enableTimer(1);
 }
 void RTScheduler::switchContext() {
+	if (!running) [[unlikely]] {
+		return;
+	}
+	DISABLE_ALL_INTERRUPTS();
 	wakeTime = std::numeric_limits<dTime>::max();
 	Time currentTime = getSecondsFromStart();
 	auto currentPriority = 255;
@@ -54,8 +56,8 @@ void RTScheduler::switchContext() {
 			}
 		}
 	}
-
 	scheduleSwitch(wakeTime);
+	ENABLE_INTERRUPTS();
 }
 #define THUMB_MODE_ADDRESS (0x01UL)
 #define THUMB_MODE_BIT ((uint32_t)0x20)
@@ -125,7 +127,7 @@ uint32_t* RTScheduler::initializeStack(uint32_t* stackTop, TaskHandle function) 
 	return stackTop;
 }
 void RTScheduler::addThread(uint32_t* stackTop, size_t stackSize, TaskHandle function, uint8_t priority) {
-	TCB newTCB = TCB(stackTop, stackSize, priority);
+	TCB newTCB = TCB(stackTop, stackSize, priority, "audio thread");
 	auto newStackTop = initializeStack(stackTop, function);
 	newTCB.topOfStack = newStackTop;
 	rtTaskArray.push_back(newTCB);
@@ -133,12 +135,14 @@ void RTScheduler::addThread(uint32_t* stackTop, size_t stackSize, TaskHandle fun
 }
 extern uint32_t program_stack_start;
 extern uint32_t program_stack_end;
-void RTScheduler::startWithCurrentThread() {
 
-	TCB newTCB = TCB(&program_stack_end, &program_stack_end - &program_stack_start, 100);
+void RTScheduler::startWithCurrentThread() {
+	running = true;
+	TCB newTCB = TCB(&program_stack_end, &program_stack_end - &program_stack_start, 100, "main thread");
 	rtTaskArray.push_back(newTCB);
 	CurrentTCB = &rtTaskArray.back();
-	// setupAndEnableInterrupt(reinterpret_cast<void (*)(uint32_t)>(ContextSwitch), INTC_ID_OSTM1TINT, 0);
+
+	D_PRINTLN("clock tick started");
 	yieldCPU();
 }
 void RTScheduler::delayUntil(Time time) {
@@ -150,14 +154,26 @@ void RTScheduler::delayUntil(Time time) {
 RTScheduler rtScheduler;
 
 extern "C" {
+#pragma GCC push_options
+#pragma GCC optimize("align-functions=16")
+volatile uint32_t ulPortInterruptNesting = 0;
+volatile uint32_t YieldRequired = 0;
+void ContextSwitchInterrupt(uint32_t intsense) {
+	if (CurrentTCB) {
+		YieldRequired = 1;
+	}
+	disableTimer(1);
+}
 void ChooseNextThread(void) {
 	rtScheduler.switchContext();
 }
 
 void yieldCPU(void) {
+	YieldRequired = 0;
 	if (CurrentTCB) {
 		// we'll just go ahead and call the scheduler now, it'll choose something to run instead of us
 		__asm volatile("SWI 0" ::: "memory");
 	}
 }
+#pragma GCC pop_options
 }

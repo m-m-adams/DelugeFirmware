@@ -40,6 +40,7 @@ target_link_libraries(deluge PUBLIC
     RZA1
     eyalroz_printf
     deluge_dsp
+
 )
 
 target_compile_definitions(deluge PUBLIC

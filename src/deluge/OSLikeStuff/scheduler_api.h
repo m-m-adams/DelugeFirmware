@@ -36,6 +36,12 @@ struct TCB;
 // repeatedly
 struct TCB* addRealTimeTask(TaskHandle task, uint8_t priority, size_t stackSize, const char* name);
 
+extern volatile uint32_t ulPortInterruptNesting;
+extern volatile uint32_t YieldRequired;
+extern void ContextSwitchInterrupt(uint32_t intsense);
+extern void ChooseNextThread(void);
+extern void yieldCPU(void);
+
 /// Schedule a task that will be called at a regular interval.
 ///
 /// The scheduler will try to run the task at a regular cadence such that the time between start of calls to the

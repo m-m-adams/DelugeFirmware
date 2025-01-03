@@ -1,6 +1,8 @@
 //
 // Created by Mark Adams on 2024-12-28.
 //
+#include "io/debug/log.h"
+#include "timers_interrupts.h"
 extern "C" {
 #include "RZA1/ostm/ostm.h"
 #include "clock_type.h"
@@ -23,18 +25,21 @@ Time getTimerValueSeconds(int timerNo) {
 	if (!running) {
 		startSystemClock();
 	}
-	Time seconds = getTimerValue(timerNo) * ONE_OVER_CLOCK;
+	Time seconds = (dTime)getTimerValue(timerNo);
 	return seconds;
 }
 
 /// return a monotonic timer value in seconds from when the task manager started
 Time getSecondsFromStart() {
+	DISABLE_ALL_INTERRUPTS();
 	auto timeNow = getTimerValueSeconds(0);
 	if (timeNow < lastTime) {
 		runningTime += rollTime;
+		D_PRINTLN("Sys clock rolled");
 	}
 	runningTime += timeNow - lastTime;
 	lastTime = timeNow;
+	ENABLE_INTERRUPTS();
 	return runningTime;
 }
 }
