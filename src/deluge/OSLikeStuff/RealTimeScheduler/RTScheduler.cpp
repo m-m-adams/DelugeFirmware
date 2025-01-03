@@ -6,19 +6,19 @@ extern "C" {
 #include "scheduler_api.h"
 }
 #include "RTScheduler.hpp"
+
 #include "RZA1/intc/devdrv_intc.h"
 #include "io/debug/log.h"
 #include "timers_interrupts/timers_interrupts.h"
+#include <algorithm>
 
 TCB* CurrentTCB = nullptr;
-constexpr int delay0_5ms = 0.0005 * DELUGE_CLOCKS_PERf;
+constexpr int delay0_5ms = 0.001 * DELUGE_CLOCKS_PERf;
 void RTScheduler::scheduleSwitch(Time time) {
 
 	wakeTime = time;
 	int64_t ticks = time - getSecondsFromStart();
-	if (ticks < delay0_5ms) {
-		ticks = delay0_5ms; // if we don't have a time yet make sure we're back in .5ms
-	}
+	ticks = std::max<int64_t>(ticks, delay0_5ms);
 	disableTimer(1);
 	setOperatingMode(1, TIMER, false);
 	// this breaks if we want to wait more than 2 minutes but we probably don't?
@@ -29,7 +29,6 @@ void RTScheduler::switchContext() {
 	if (!running) [[unlikely]] {
 		return;
 	}
-	DISABLE_ALL_INTERRUPTS();
 	wakeTime = std::numeric_limits<dTime>::max();
 	Time currentTime = getSecondsFromStart();
 	auto currentPriority = 255;
@@ -57,7 +56,6 @@ void RTScheduler::switchContext() {
 		}
 	}
 	scheduleSwitch(wakeTime);
-	ENABLE_INTERRUPTS();
 }
 #define THUMB_MODE_ADDRESS (0x01UL)
 #define THUMB_MODE_BIT ((uint32_t)0x20)
@@ -129,7 +127,7 @@ uint32_t* RTScheduler::initializeStack(uint32_t* stackTop, TaskHandle function) 
 void RTScheduler::addThread(uint32_t* stackTop, size_t stackSize, TaskHandle function, uint8_t priority) {
 	TCB newTCB = TCB(stackTop, stackSize, priority, "audio thread");
 	auto newStackTop = initializeStack(stackTop, function);
-	newTCB.topOfStack = newStackTop;
+	newTCB.stackPointer = newStackTop;
 	rtTaskArray.push_back(newTCB);
 	std::sort(rtTaskArray.begin(), rtTaskArray.end());
 }
@@ -143,10 +141,11 @@ void RTScheduler::startWithCurrentThread() {
 	CurrentTCB = &rtTaskArray.back();
 
 	D_PRINTLN("clock tick started");
+	// don't need to set the SP yet - the context will be stashed there when we yield
 	yieldCPU();
 }
 void RTScheduler::delayUntil(Time time) {
-	CurrentTCB->nextWakeTime = time;
+	CurrentTCB->nextWakeTime = time + getSecondsFromStart();
 	CurrentTCB->state = ThreadState::waiting;
 	yieldCPU();
 }
@@ -170,6 +169,7 @@ void ChooseNextThread(void) {
 
 void yieldCPU(void) {
 	YieldRequired = 0;
+	disableTimer(1);
 	if (CurrentTCB) {
 		// we'll just go ahead and call the scheduler now, it'll choose something to run instead of us
 		__asm volatile("SWI 0" ::: "memory");

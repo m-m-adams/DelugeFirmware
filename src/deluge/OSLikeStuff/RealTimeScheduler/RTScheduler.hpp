@@ -17,7 +17,8 @@ enum class ThreadState {
 };
 
 struct TCB {
-	volatile uint32_t* topOfStack{0};
+	volatile uint32_t* stackPointer{0};
+	uint32_t* topOfStack{0};
 	uint32_t* bottomOfStack{0};
 	size_t stackSize{0};
 	Time nextWakeTime{0};
@@ -26,8 +27,8 @@ struct TCB {
 	const char* name{nullptr};
 
 	TCB(uint32_t* topOfStack, size_t stackSize, uint8_t priority, const char* name)
-	    : topOfStack(topOfStack), bottomOfStack(topOfStack - stackSize), priority(priority), stackSize(stackSize),
-	      name{name} {}
+	    : stackPointer(topOfStack), topOfStack(topOfStack), bottomOfStack(topOfStack - stackSize), priority(priority),
+	      stackSize(stackSize), name{name} {}
 	TCB() = default;
 	// priorities are descending (0 is max)
 	bool operator<(const TCB& another) const { return priority > another.priority; }

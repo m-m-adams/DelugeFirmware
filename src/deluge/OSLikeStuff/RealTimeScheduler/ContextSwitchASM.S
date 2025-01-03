@@ -89,6 +89,10 @@
 .align 4
 .type ContextSwitch, %function
 ContextSwitch:
+    // we can't have any other interrupts fire while we do this
+	CPSID	i
+	DSB
+	ISB
     /* Save the context of the current task and select a new task to run. */
     SAVE_CONTEXT
 

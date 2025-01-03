@@ -17,6 +17,7 @@
 
 #include "log.h"
 #include "io/debug/print.h"
+#include "timers_interrupts/timers_interrupts.h"
 #include "util/functions.h"
 #include <cstdarg>
 
@@ -27,6 +28,7 @@ extern "C" {
 #if ENABLE_TEXT_OUTPUT
 // only called from the D_PRINT macros
 void logDebug(enum DebugPrintMode mode, const char* file, int line, size_t bufsize, const char* format, ...) {
+	DISABLE_ALL_INTERRUPTS();
 	static char buffer[512];
 	va_list args;
 
@@ -51,6 +53,7 @@ void logDebug(enum DebugPrintMode mode, const char* file, int line, size_t bufsi
 	else {
 		Debug::print(buffer);
 	}
+	ENABLE_INTERRUPTS();
 }
 #endif
 

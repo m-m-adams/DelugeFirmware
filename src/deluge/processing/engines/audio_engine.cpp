@@ -1058,10 +1058,9 @@ void AudioThread() {
 			routine_();
 			audioRoutineLocked = false;
 			routineBeenCalled = true;
-			static Time delay = Time(2 / 44100.);
-			Time nextCall = getSecondsFromStart() + delay;
+			static Time delay = Time(1 / 44100.);
 			doSomeOutputting();
-			rtScheduler.delayUntil(nextCall);
+			rtScheduler.delayUntil(delay);
 		}
 		else {
 			if (!sdRoutineLock) {
