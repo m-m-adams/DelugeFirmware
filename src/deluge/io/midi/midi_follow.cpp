@@ -183,10 +183,20 @@ Clip* MidiFollow::getActiveClip(ModelStack* modelStack) {
 	// when auditioning a clip for that output,
 	// the active clip for that output should be set to the current clip.
 	Clip* currentClip = getCurrentClip();
-	if (currentClip && (currentClip->type == ClipType::INSTRUMENT)) {
-		if (currentClip->output) {
-			InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
-			return currentClip->output->getActiveClip();
+	if (currentClip) {
+		if (currentClip->type == ClipType::INSTRUMENT) {
+			if (currentClip->output) {
+				InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
+				return currentClip->output->getActiveClip();
+			}
+		}
+		// redundant but in case someone adds a type in the future I don't want to crash on this cast
+		else if (currentClip->type == ClipType::AUDIO) {
+			auto ao = (AudioOutput*)currentClip->output;
+			auto otherO = ao->getActiveClip();
+			if (otherO) {
+				return ao->getOutputRecordingFrom()->getActiveClip();
+			}
 		}
 	}
 	return nullptr;
@@ -766,17 +776,15 @@ void MidiFollow::aftertouchReceived(MIDICable& cable, int32_t channel, int32_t v
 		if (clip) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-			if (modelStackWithTimelineCounter) {
-				if (clip->output->type == OutputType::KIT) {
-					Kit* kit = (Kit*)clip->output;
-					kit->receivedAftertouchForKit(modelStackWithTimelineCounter, cable, match, channel, value, noteCode,
-					                              doingMidiThru);
-				}
-				else {
-					MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
-					melodicInstrument->receivedAftertouch(modelStackWithTimelineCounter, cable, match, channel, value,
-					                                      noteCode, doingMidiThru);
-				}
+			if (clip->output->type == OutputType::KIT) {
+				Kit* kit = (Kit*)clip->output;
+				kit->receivedAftertouchForKit(modelStackWithTimelineCounter, cable, match, channel, value, noteCode,
+				                              doingMidiThru);
+			}
+			else {
+				MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
+				melodicInstrument->receivedAftertouch(modelStackWithTimelineCounter, cable, match, channel, value,
+				                                      noteCode, doingMidiThru);
 			}
 		}
 	}
