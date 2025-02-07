@@ -943,7 +943,8 @@ Error ResizeableArray::insertAtIndex(int32_t i, int32_t numToInsert, void* thing
 
 			// If not enough memory...
 			if (newNum > memorySize) {
-				auto ideal = std::max<int32_t>((numToInsert + numExtraSpacesToAllocate) - memorySize, memorySize);
+				// ideally we just double our allocation, if that's still not enough make  sure there's more room
+				auto ideal = std::max<int32_t>(numToInsert + numExtraSpacesToAllocate, memorySize);
 
 				bool success =
 				    attemptMemoryExpansion(numToInsert, ideal, !staticMemoryAllocationSize, thingNotToStealFrom);
