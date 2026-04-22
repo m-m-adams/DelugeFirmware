@@ -826,6 +826,7 @@ int32_t numDeallocTimes = 0;
 #endif
 
 void MemoryRegion::dealloc(void* address) {
+	address = (void*)((uintptr_t)address & ~UNCACHED_MIRROR_OFFSET);
 
 	// uint16_t startTime = *TCNT[TIMER_SYSTEM_FAST];
 

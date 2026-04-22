@@ -240,22 +240,25 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 		// If resampling previously recorded as happening, or just about to be recorded as happening
 		if (primaryBuffer.resampling() || delayWorkingState.userDelayRate != primaryBuffer.nativeRate()) {
 
-			// If delay speed has settled for a split second...
-			if (countCyclesWithoutChange >= (kSampleRate >> 5)) {
-				// D_PRINTLN("settling");
-				initializeSecondaryBuffer(delayWorkingState.userDelayRate, true);
-			}
+			// If delay speed has settled for a second...
+			if (countCyclesWithoutChange >= (kSampleRate)) {
 
-			// If spinning at double native rate, there's no real need to be using such a big buffer, so make a new
-			// (smaller) buffer at our new rate
-			else if (delayWorkingState.userDelayRate >= (primaryBuffer.nativeRate() << 1)) {
-				initializeSecondaryBuffer(delayWorkingState.userDelayRate, false);
-			}
+				// If spinning at double native rate, there's no real need to be using such a big buffer, so make a new
+				// (smaller) buffer at our new rate
+				if (delayWorkingState.userDelayRate >= (primaryBuffer.nativeRate() << 1)) {
+					initializeSecondaryBuffer(delayWorkingState.userDelayRate, false);
+				}
 
-			// If spinning below native rate, the quality's going to be suffering, so make a new buffer whose native
-			// rate is half our current rate (double the quality)
-			else if (delayWorkingState.userDelayRate < primaryBuffer.nativeRate() >> 1) {
-				initializeSecondaryBuffer(delayWorkingState.userDelayRate >> 1, false);
+				// If spinning below native rate, the quality's going to be suffering, so make a new buffer whose native
+				// rate is half our current rate (double the quality)
+				else if (delayWorkingState.userDelayRate < primaryBuffer.nativeRate() >> 1) {
+					initializeSecondaryBuffer(delayWorkingState.userDelayRate >> 1, false);
+				}
+				else {
+					// otherwise just set to the current rate
+					// D_PRINTLN("settling");
+					initializeSecondaryBuffer(delayWorkingState.userDelayRate, true);
+				}
 			}
 		}
 	}

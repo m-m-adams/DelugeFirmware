@@ -563,7 +563,6 @@ void Output::endArrangementPlayback(Song* song, int32_t actualEndPos, uint32_t t
 	if (!activeClip) {
 		return;
 	}
-
 	if (!recordingInArrangement) {
 
 		// See if a ClipInstance was already playing

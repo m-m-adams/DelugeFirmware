@@ -34,6 +34,7 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/sound/sound.h"
 #include "util/functions.h"
 
 extern "C" {}

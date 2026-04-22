@@ -221,6 +221,8 @@ uint32_t GeneralMemoryAllocator::getAllocatedSize(void* address) {
 
 int32_t GeneralMemoryAllocator::getRegion(void* address) {
 	uint32_t value = (uint32_t)address;
+	value = value & ~UNCACHED_MIRROR_OFFSET;
+
 	if (value >= regions[MEMORY_REGION_INTERNAL].start && value < regions[MEMORY_REGION_INTERNAL].end) {
 		return MEMORY_REGION_INTERNAL;
 	}
@@ -257,7 +259,6 @@ uint32_t GeneralMemoryAllocator::shortenLeft(void* address, uint32_t amountToSho
 void GeneralMemoryAllocator::extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend,
                                     uint32_t* __restrict__ getAmountExtendedLeft,
                                     uint32_t* __restrict__ getAmountExtendedRight, void* thingNotToStealFrom) {
-
 	*getAmountExtendedLeft = 0;
 	*getAmountExtendedRight = 0;
 
