@@ -122,7 +122,7 @@ private:
 	EnvParams& pitchenv_p() { return *(EnvParams*)&patch[126]; }
 
 public:
-	DxVoice* nextUnassigned;
+	DxVoice* nextUnassigned{nullptr};
 	bool preallocated;
 };
 

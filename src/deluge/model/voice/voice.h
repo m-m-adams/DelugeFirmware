@@ -115,6 +115,7 @@ public:
 	/// Release immediately with provided release rate
 	/// Returns whether voice should still be left active
 	bool doFastRelease(uint32_t releaseIncrement);
+	void stop_dx7_voices();
 
 	/// Sets envelope to off (will interpolate through this render window).
 	/// Returns whether voice should still be left active

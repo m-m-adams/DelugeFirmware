@@ -163,6 +163,7 @@ void Envelope::setState(EnvelopeStage newState) {
 	timeEnteredState = AudioEngine::nextVoiceState++;
 	if (newState == EnvelopeStage::FAST_RELEASE) {
 		if (fastReleaseIncrement < 65536) {
+			fastReleaseIncrement = 65536;
 			D_PRINTLN("fast releasing slowly");
 		}
 	}

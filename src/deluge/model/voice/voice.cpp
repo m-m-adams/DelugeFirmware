@@ -2451,6 +2451,15 @@ bool Voice::doFastRelease(uint32_t releaseIncrement) {
 	}
 }
 
+void Voice::stop_dx7_voices() {
+	for (int s = 0; s < kNumSources; s++) {
+		for (int u = 0; u < sound.numUnison; u++) {
+			if (unisonParts[u].sources[s].dxVoice) {
+				unisonParts[u].sources[s].dxVoice->keyup();
+			}
+		}
+	}
+}
 bool Voice::forceNormalRelease() {
 	if (doneFirstRender) {
 		// If no release-stage, we'll stop as soon as we can
@@ -2461,6 +2470,7 @@ bool Voice::forceNormalRelease() {
 		else {
 			envelopes[0].unconditionalRelease();
 		}
+		stop_dx7_voices();
 		return true;
 	}
 
@@ -2492,6 +2502,7 @@ bool Voice::speedUpRelease() {
 bool Voice::doImmediateRelease() {
 	if (doneFirstRender) {
 		envelopes[0].unconditionalOff();
+		stop_dx7_voices();
 		return true;
 	}
 

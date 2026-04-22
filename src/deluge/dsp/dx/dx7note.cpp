@@ -217,8 +217,7 @@ int ScaleLevel(int midinote, int break_pt, int left_depth, int right_depth, int 
 	}
 }
 
-DxVoice::DxVoice() {
-	preallocated = false;
+DxVoice::DxVoice() : preallocated(false) {
 	for (int op = 0; op < 6; op++) {
 		phase[op] = 0;
 		gain_out[op] = 0;

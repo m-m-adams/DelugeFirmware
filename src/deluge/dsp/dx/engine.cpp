@@ -26,7 +26,6 @@
 #include <new>
 
 DxEngine* dxEngine = nullptr;
-
 static void init_engine(void) {
 	// get ourselves an aligned pointer to use placement new with
 	// todo: this should be a part of the allocator but not sure what the api should look like, easy bugfix for now

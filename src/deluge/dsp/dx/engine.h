@@ -22,8 +22,8 @@
 #include "dx7note.h"
 
 // seems to cause crashes... maybe YAGNI
-// #define DX_PREALLOC
-
+#define DX_PREALLOC
+constexpr size_t kNumVoiceSamplesStatic = 16;
 class DxEngine {
 public:
 	DxEngine();
@@ -51,7 +51,7 @@ public:
 	int32_t freq_lut[FREQ_N_SAMPLES + 1];
 
 #ifdef DX_PREALLOC
-	DxVoice dxVoices[kNumVoiceSamplesStatic];
+	alignas(CACHE_LINE_SIZE) DxVoice dxVoices[kNumVoiceSamplesStatic];
 	DxVoice* firstUnassignedDxVoice;
 #endif
 
