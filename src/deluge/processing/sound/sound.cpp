@@ -26,6 +26,7 @@
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
+#include "io/debug/dz_probe.h"
 #include "io/midi/midi_engine.h"
 #include "memory/fast_allocator.h"
 #include "memory/general_memory_allocator.h"
@@ -1633,9 +1634,11 @@ void Sound::noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* 
 	reassessRenderSkippingStatus(modelStackWithSoundFlags);
 }
 
-void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp, int32_t noteCodePostArp,
-                                  int32_t velocity, int16_t const* mpeValues, uint32_t sampleSyncLength,
-                                  int32_t ticksLate, uint32_t samplesLate, int32_t fromMIDIChannel) {
+DZ_NOINLINE void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp,
+                                              int32_t noteCodePostArp, int32_t velocity, int16_t const* mpeValues,
+                                              uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
+                                              int32_t fromMIDIChannel) {
+	DZ_SCOPE(dz::SCOPE_NOTE_ON_POST);
 	const ActiveVoice* voiceToReuse = nullptr;
 	const ActiveVoice* voiceForLegato = nullptr;
 
@@ -2376,7 +2379,7 @@ void Sound::stopParamLPF(ModelStackWithSoundFlags* modelStack) {
 	}
 }
 
-void Sound::startArpNoteOns(ModelStackWithSoundFlags* modelStack, ArpReturnInstruction const& instruction) {
+DZ_NOINLINE void Sound::startArpNoteOns(ModelStackWithSoundFlags* modelStack, ArpReturnInstruction const& instruction) {
 	ArpNote* arpNote = instruction.arpNoteOn;
 	if (arpNote == nullptr) {
 		return;

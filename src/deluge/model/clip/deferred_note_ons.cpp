@@ -19,6 +19,7 @@
 #include "OSLikeStuff/scheduler_api.h"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
+#include "io/debug/dz_probe.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -249,6 +250,7 @@ ModelStackWithSoundFlags* setupModelStackForSound(void* memory, Sound* sound) {
 
 void startVoiceNow(ModelStackWithSoundFlags* modelStack, Sound& sound, VoiceStart const& start) {
 	uint32_t startTicks = getSystemTicks();
+	dz::voiceStartAsked(true, sending); // probe: a start from the queue counts as a pending start
 	sound.invertReversed = start.invertReversed;
 	sound.noteOnPostArpeggiator(modelStack, start.noteCodePreArp, start.noteCodePostArp, start.velocity,
 	                            start.mpeValues, start.sampleSyncLength, start.ticksLate, start.samplesLate,
@@ -291,6 +293,7 @@ void startVoice(ModelStackWithSoundFlags* modelStack, Sound& sound, VoiceStart c
 		return;
 	}
 
+	dz::voiceStartAsked(false, false); // probe: counts like a refusal
 	DeferredNoteOn& d = queue[numDeferred++];
 	d = DeferredNoteOn{};
 	d.kind = Kind::VOICE;
@@ -317,6 +320,7 @@ bool tryDefer(InstrumentClip* clip, PendingNoteOn const& note) {
 		return false;
 	}
 
+	dz::voiceStartAsked(false, false); // probe: counts like a refusal
 	DeferredNoteOn& d = queue[numDeferred++];
 	d = DeferredNoteOn{};
 	d.kind = Kind::SEQUENCED;
@@ -341,6 +345,7 @@ void sendWhatCanStart() {
 		numDeferred--;
 
 		sending = true;
+		DZ_SCOPE(dz::SCOPE_POSTARP);
 		if (d.kind == Kind::SEQUENCED) {
 			sendSequenced(d);
 		}
