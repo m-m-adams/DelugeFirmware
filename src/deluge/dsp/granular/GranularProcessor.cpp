@@ -306,11 +306,15 @@ GranularProcessor::GranularProcessor() {
 }
 void GranularProcessor::getBuffer() {
 	if (grainBuffer == nullptr) {
-		void* grainBufferMemory = GeneralMemoryAllocator::get().allocStealable<GrainBuffer>();
-		if (grainBufferMemory) {
-			grainBuffer = new (grainBufferMemory) GrainBuffer(this);
-		}
-		else {}
+		// The GrainBuffer is constructed by whoever does the allocation, straight away: the GMA may call a
+		// Stealable's virtuals as soon as its memory is marked stealable. It starts out inUse, so it can't be stolen
+		// before we've picked it up.
+		grainBuffer = static_cast<GrainBuffer*>(bufferMemory_.request(
+		    sizeof(GrainBuffer), AllocRegion::STEALABLE,
+		    [](void* memory, uint32_t, void* owner) {
+			    new (memory) GrainBuffer(static_cast<GranularProcessor*>(owner));
+		    },
+		    [](void* memory) { static_cast<GrainBuffer*>(memory)->~GrainBuffer(); }, this));
 	}
 	else {
 		grainBuffer->inUse = true;
@@ -321,9 +325,9 @@ void GranularProcessor::getBuffer() {
 }
 GranularProcessor::~GranularProcessor() {
 	if (grainBuffer) {
-		grainBuffer->~GrainBuffer();
-		delugeDealloc(grainBuffer);
+		grainBuffer->detach();
 	}
+	bufferMemory_.reset(); // destroys and frees the GrainBuffer (deferred in the audio routine), or cancels a request
 }
 GranularProcessor::GranularProcessor(const GranularProcessor& other) {
 	wrapsToShutdown = other.wrapsToShutdown;

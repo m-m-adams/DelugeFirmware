@@ -1551,7 +1551,9 @@ void ModControllableAudio::wontBeRenderedForAWhile() {
 
 void ModControllableAudio::clearModFXMemory() {
 	if (modFXType_ == ModFXType::GRAIN) {
-		grainFX->clearGrainFXBuffer();
+		if (grainFX != nullptr) { // may still be on its way (deferred allocation)
+			grainFX->clearGrainFXBuffer();
+		}
 	}
 	else if (modFXType_ != ModFXType::NONE) {
 		modfx.resetMemory();
@@ -1829,9 +1831,14 @@ void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, b
 bool ModControllableAudio::enableGrain() {
 
 	if (grainFX == nullptr) {
-		void* grainMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(GranularProcessor));
+		// In the render this only asks for it (and the grain FX passes the dry signal through until it's here); the
+		// GranularProcessor is constructed by whoever allocates it, and asks for its own big buffer from there
+		void* grainMemory = grainMemory_.request(
+		    sizeof(GranularProcessor), AllocRegion::MAX_SPEED,
+		    [](void* memory, uint32_t, void*) { new (memory) GranularProcessor; },
+		    [](void* memory) { static_cast<GranularProcessor*>(memory)->~GranularProcessor(); });
 		if (grainMemory) {
-			grainFX = new (grainMemory) GranularProcessor;
+			grainFX = static_cast<GranularProcessor*>(grainMemory_.take());
 			return true;
 		}
 	}

@@ -113,7 +113,8 @@ public:
 	ModFXType modFXType_;
 	ModFXProcessor modfx{};
 	RMSFeedbackCompressor compressor;
-	GranularProcessor* grainFX{nullptr};
+	GranularProcessor* grainFX{nullptr}; ///< owned; nullptr until GRAIN is first used and its memory has arrived
+	DeferredAlloc grainMemory_;          ///< grainFX's memory while it's being allocated (deferred in the render)
 
 	uint32_t lowSampleRatePos{};
 	uint32_t highSampleRatePos{};

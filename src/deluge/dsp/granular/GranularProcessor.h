@@ -22,6 +22,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/filter/ladder_components.h"
 #include "dsp/stereo_sample.h"
+#include "memory/deferred_alloc.h"
 #include "memory/stealable.h"
 #include "modulation/lfo.h"
 #include <span>
@@ -59,7 +60,11 @@ public:
 	                    q31_t reverbAmount);
 
 	void clearGrainFXBuffer();
-	void grainBufferStolen() { grainBuffer = nullptr; }
+	/// The GMA stole the buffer's memory (it calls the destructor itself)
+	void grainBufferStolen() {
+		grainBuffer = nullptr;
+		bufferMemory_.forget();
+	}
 
 private:
 	void setupGrainFX(int32_t grainRate, int32_t grainMix, int32_t grainDensity, int32_t pitchRandomness,
@@ -84,7 +89,10 @@ private:
 	Grain grains[8]{};
 
 	int32_t wrapsToShutdown;
+	/// nullptr until the buffer's memory arrives (it's requested with a DeferredAlloc, so in the render it can take a
+	/// little while; until then the grain FX passes the dry signal through), or after it's been stolen
 	GrainBuffer* grainBuffer{};
+	DeferredAlloc bufferMemory_; ///< owns grainBuffer's memory
 	int32_t _densityKnobPos{0};
 	int32_t _rateKnobPos{0};
 	int32_t _mixKnobPos{0};
@@ -106,7 +114,17 @@ public:
 		}
 		return false;
 	};
-	void steal(char const* errorCode) override { owner->grainBufferStolen(); };
+	void steal(char const* errorCode) override {
+		if (owner != nullptr) {
+			owner->grainBufferStolen();
+		}
+	};
+	/// The owner is going away but the memory may only be freed later (deferred): make sure nothing steals it or
+	/// calls back into the owner meanwhile
+	void detach() {
+		owner = nullptr;
+		inUse = true;
+	}
 
 	// gives it  a high priority - these are huge so reallocating them can be slow
 	StealableQueue getAppropriateQueue() override { return StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE; };

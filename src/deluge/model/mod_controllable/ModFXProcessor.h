@@ -18,6 +18,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
+#include "memory/deferred_alloc.h"
 #include "modulation/lfo.h"
 #include "util/containers.h"
 #include <cstdint>
@@ -54,23 +55,23 @@ public:
 		ModFXProcessor::modFXBufferWriteIndex = 0;
 		memset(allpassMemory, 0, sizeof(allpassMemory));
 	}
-	~ModFXProcessor() {
-		// Free the mod fx memory
-		if (modFXBuffer) {
-			delugeDealloc(modFXBuffer);
-		}
-	}
+	// bufferMemory_ frees the mod fx memory
+	~ModFXProcessor() = default;
 	// Phaser
 	StereoSample phaserMemory{0, 0};
 	StereoSample allpassMemory[kNumAllpassFiltersPhaser];
+	/// The delay line for the delay-based effects, nullptr until it's been allocated. Owned by bufferMemory_: in the
+	/// render it's only requested, and the effect passes the dry signal through until the memory arrives.
 	StereoSample* modFXBuffer{nullptr};
+	DeferredAlloc bufferMemory_;
 	uint16_t modFXBufferWriteIndex{0};
 	LFO modFXLFO;
 	LFO modFXLFOStereo;
 	void processModFX(std::span<StereoSample> buffer, const ModFXType& modFXType, int32_t modFXRate, int32_t modFXDepth,
 	                  int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams, bool anySoundComingIn);
 	void resetMemory();
-	void setupBuffer();
+	/// Ask for the delay line (allocates now outside the audio routine, else deferred). Returns whether it's here
+	bool setupBuffer();
 	void disableBuffer();
 	void tickLFO(int32_t numSamples, int32_t phaseIncrement) {
 		// Do Mod FX

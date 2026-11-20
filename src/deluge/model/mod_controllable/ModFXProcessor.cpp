@@ -32,6 +32,13 @@ void ModFXProcessor::processModFX(std::span<StereoSample> buffer, const ModFXTyp
 	if (anySoundComingIn == false)
 		return;
 	if (modFXType != ModFXType::NONE) {
+		// Every type but the phaser (and grain, which isn't done here) runs through the delay line. While its memory
+		// is still on the way (deferred allocation), pass the dry signal through untouched - same level, no wet.
+		if (modFXType != ModFXType::PHASER && modFXType != ModFXType::GRAIN && modFXBuffer == nullptr) {
+			if (!setupBuffer()) {
+				return;
+			}
+		}
 
 		LFOType modFXLFOWaveType{};
 		int32_t modFXDelayOffset{};
@@ -278,17 +285,16 @@ void ModFXProcessor::resetMemory() {
 	}
 }
 
-void ModFXProcessor::setupBuffer() {
+bool ModFXProcessor::setupBuffer() {
 	if (!modFXBuffer) {
-		modFXBuffer = (StereoSample*)delugeAlloc(kModFXBufferSize * sizeof(StereoSample));
-		if (modFXBuffer) {
-			memset(modFXBuffer, 0, kModFXBufferSize * sizeof(StereoSample));
-		}
+		// Zeroed by the allocating context, so the render never pays for it
+		modFXBuffer =
+		    (StereoSample*)bufferMemory_.request(kModFXBufferSize * sizeof(StereoSample), AllocRegion::MAX_SPEED,
+		                                         [](void* memory, uint32_t size, void*) { memset(memory, 0, size); });
 	}
+	return modFXBuffer != nullptr;
 }
 void ModFXProcessor::disableBuffer() {
-	if (modFXBuffer) {
-		delugeDealloc(modFXBuffer);
-		modFXBuffer = nullptr;
-	}
+	modFXBuffer = nullptr;
+	bufferMemory_.reset(); // cancels a pending request, or frees the buffer (deferred in the audio routine)
 }
