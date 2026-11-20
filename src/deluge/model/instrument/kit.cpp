@@ -1237,6 +1237,12 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 			if (thisNoteRow->drum->type == DrumType::SOUND) {
 				SoundDrum* soundDrum = (SoundDrum*)thisNoteRow->drum;
 
+				// With the drum's arp off, a 0 here only means a note is waiting for a voice, and the drum's render()
+				// starts those (see SoundInstrument::doTickForwardForArp())
+				if (ArpeggiatorBase::arpIsOff(&drum->arpSettings)) {
+					ticksTilNextArpEventThisDrum = 2147483647;
+				}
+
 				ModelStackWithSoundFlags* modelStackWithSoundFlags =
 				    modelStackWithNoteRow->addOtherTwoThings(soundDrum, &thisNoteRow->paramManager)->addSoundFlags();
 

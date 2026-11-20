@@ -430,6 +430,13 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 	int32_t ticksTilNextArpEvent =
 	    arpeggiator.doTickForward(arpSettings, &instruction, currentPos, activeClip->currentlyPlayingReversed);
 
+	// With the arp off, doTickForward() only asks to come back next tick (returns 0) because a note is waiting for a
+	// voice. render() starts those notes every render anyway (and keeps this Sound rendering until it has), so don't
+	// schedule extra song ticks for them: each one cuts a render window short and costs a whole tick.
+	if (ArpeggiatorBase::arpIsOff(arpSettings)) {
+		ticksTilNextArpEvent = 2147483647;
+	}
+
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStackWithThreeMainThings->addSoundFlags();
 
 	bool atLeastOneOff = false;
