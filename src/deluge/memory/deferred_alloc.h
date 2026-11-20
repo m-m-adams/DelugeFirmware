@@ -146,6 +146,7 @@ struct DeferredAllocStats {
 	uint32_t syncDeallocsInAudio; ///< synchronous GMA deallocations inside the audio routine
 	uint32_t lastSyncAllocCaller; ///< return address of the last synchronous allocation in the audio routine
 	uint32_t lastSyncDeallocCaller;
-	uint32_t serviceMaxCycles; ///< reserved
+	uint32_t maxLatencySamples; ///< longest time from queueing a request to publishing its memory (audio samples)
+	uint32_t sumLatencySamples; ///< sum of that over requestsServed
 };
 extern "C" DeferredAllocStats deferredAllocStats;
