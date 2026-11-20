@@ -37,6 +37,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
+#include "io/debug/dz_probe.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
@@ -970,7 +971,8 @@ void PlaybackHandler::doMIDIClockOutTick() {
 	}
 }
 
-void PlaybackHandler::actionSwungTick() {
+DZ_NOINLINE void PlaybackHandler::actionSwungTick() {
+	DZ_SCOPE(dz::SCOPE_SWUNG_TICK);
 
 	currentlyActioningSwungTickOrResettingPlayPos = true;
 
