@@ -16,6 +16,7 @@
  */
 
 #include "processing/engines/audio_engine.h"
+#include "io/debug/dz_probe.h"
 
 #include "chrono"
 #include "definitions.h"
@@ -400,12 +401,14 @@ void killOneVoice(size_t num_samples) {
 		// no active voices found, try to cull an audio clip instead
 		if (currentSong) {
 			currentSong->cullAudioClipVoice();
+			dz::culled(dz::Cull::KILL);
 		}
 		// return early since there are no active voices to kill
 		return;
 	}
 
 	const Sound::ActiveVoice& voice = *it;
+	dz::culled(dz::Cull::KILL);
 
 	bool still_rendering = voice->doImmediateRelease();
 	if (!still_rendering) {
@@ -443,6 +446,7 @@ void terminateOneVoice(size_t numSamples) {
 	}
 
 	const Sound::ActiveVoice& voice = *best;
+	dz::culled(dz::Cull::TERMINATE);
 	bool still_rendering = voice->doFastRelease(2 * SOFT_CULL_INCREMENT);
 	if (!still_rendering) {
 		voice->sound.freeActiveVoice(voice);
@@ -478,6 +482,7 @@ void forceReleaseOneVoice(size_t num_samples) {
 	}
 
 	const Sound::ActiveVoice& voice = *best;
+	dz::culled(dz::Cull::FORCE_RELEASE);
 
 	auto stage = voice->envelopes[0].state;
 	if (stage < EnvelopeStage::FAST_RELEASE) {
@@ -567,6 +572,7 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 			D_PRINTLN("Culling %d voices - 1 force, %d  terminate, %d kill", num_to_cull, num_to_terminate,
 			          num_to_kill);
+			dz::cullEvent(dz::CullEvent::HARD);
 			for (int32_t i = 0; i < num_to_kill; i++) {
 				// cull with immediate release
 				killOneVoice(numSamples);
@@ -589,6 +595,7 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 		// is increasing
 		else if (num_samples_over_limit >= 0) {
 			if (last_num_samples_over > 0 && num_samples_over_limit >= last_num_samples_over) {
+				dz::cullEvent(dz::CullEvent::SOFT);
 				forceReleaseOneVoice(numSamples);
 				if (numRoutines > 0) {
 					culled = true;
@@ -601,6 +608,7 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 		// Cull anyway if things are bad
 		if (num_samples_over_limit >= 40) {
 			D_PRINTLN("under min voices but culling anyway");
+			dz::cullEvent(dz::CullEvent::UNDER_MIN);
 			forceReleaseOneVoice(numSamples);
 			culled = true;
 		}
@@ -670,6 +678,7 @@ inline void setDireness(size_t numSamples, int32_t timeTilNextTick) {
 	}
 	int32_t predicted = (int32_t)(songTickReserve(timeTilNextTick) + renderCost.predict(renderSize));
 	int32_t margin = queued - predicted;
+	dz::direness(margin, songTickCost.get());
 	numSamples = std::max<int32_t>(numSamplesLimit + kCullMargin - margin, 0);
 
 	// don't smooth this - used for other decisions as well
@@ -884,6 +893,7 @@ bool calledFromScheduler = false;
 
 /// inner loop of audio rendering, deliberately not in header
 [[gnu::hot]] void routine_() {
+	dz::routineBegin();
 	static double last_call_time = getSystemTime();
 	double current_time = getSystemTime();
 	if (current_time - last_call_time > 0.003) {
@@ -912,6 +922,8 @@ bool calledFromScheduler = false;
 		return;
 	}
 
+	dz::renderBegin(numSamples, numRoutines);
+
 	// From here on, MIDI is due when the playhead reaches the start of this window, until a MIDI tick in the window
 	// moves that along
 	windowStartTicks = getSystemTicks();
@@ -933,6 +945,7 @@ bool calledFromScheduler = false;
 	uint32_t tickStartTicks = getSystemTicks();
 	tickSongFinalizeWindows(numSamples);
 	uint32_t renderStartTicks = getSystemTicks();
+	dz::renderAudioBegin();
 
 	numSamplesLastTime = numSamples;
 
@@ -960,6 +973,7 @@ bool calledFromScheduler = false;
 	}
 
 	bypassCulling = false;
+	dz::renderEnd(numSamples, numHopsEndedThisRoutineCall, audioSampleTimer);
 }
 q31_t getInputMonitoringGain(uint32_t offset) {
 	if (inputMonitoringWarmedUp) {
@@ -1127,6 +1141,7 @@ startAgain:
 		// If tick occurs right now at the start of this window - which is fairly likely, cos we would have cut the
 		// previous window short if it had such a tick during it...
 		if (timeTilNextTick <= 0) {
+			dz::tickBegin();
 			if (nextTickType == TICK_TYPE_TIMER) {
 				playbackHandler.actionTimerTick();
 			}
@@ -1135,6 +1150,7 @@ startAgain:
 				playbackHandler.scheduleSwungTick(); // If that swung tick action just did a song swap, this will have
 				                                     // already been called, but fortunately this doesn't break anything
 			}
+			dz::tickEnd();
 
 			// Those could have outputted clock or gates, which need to go at the start of the window. MIDI's already
 			// due then
