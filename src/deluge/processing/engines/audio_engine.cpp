@@ -16,6 +16,7 @@
  */
 
 #include "processing/engines/audio_engine.h"
+#include "io/debug/alloc_trace.h"
 #include "io/debug/dz_probe.h"
 
 #include "chrono"
@@ -937,7 +938,9 @@ bool calledFromScheduler = false;
 	voices_started_this_render = 0;
 
 	uint32_t tickStartTicks = getSystemTicks();
+	dz_alloc::dzInTick = 1;
 	tickSongFinalizeWindows(numSamples);
+	dz_alloc::dzInTick = 0;
 	uint32_t renderStartTicks = getSystemTicks();
 	dz::renderAudioBegin();
 
@@ -1402,6 +1405,7 @@ void routine() {
 	audioRoutineLocked = true;
 	// From here until we're done, GMA allocations through DeferredAlloc are deferred to a low-priority task
 	GeneralMemoryAllocator::get().audioRoutineDepth++;
+	dz_alloc::dzInAudioRoutine = 1;
 
 	numRoutines = 0;
 	if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
@@ -1474,6 +1478,7 @@ void routine() {
 		}
 	}
 	GeneralMemoryAllocator::get().audioRoutineDepth--;
+	dz_alloc::dzInAudioRoutine = 0;
 	audioRoutineLocked = false;
 	routineBeenCalled = true;
 }

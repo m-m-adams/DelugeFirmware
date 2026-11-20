@@ -18,6 +18,7 @@
 #include "memory/general_memory_allocator.h"
 
 #include "definitions_cxx.hpp"
+#include "io/debug/alloc_trace.h"
 #include "io/debug/log.h"
 #include "memory/stealable.h"
 #include "processing/engines/audio_engine.h"
@@ -121,16 +122,20 @@ uint32_t totalMallocTime = 0;
 int32_t numMallocTimes = 0;
 #endif
 extern "C" void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam) {
+	DZ_ALLOC_SCOPE(dz_alloc::ALLOC, requiredSize);
 	return GeneralMemoryAllocator::get().alloc(requiredSize, mayUseOnChipRam, false, nullptr);
 }
 extern "C" void delugeDealloc(void* address) {
 #ifdef IN_UNIT_TESTS
 	free(address);
 #else
+	DZ_ALLOC_SCOPE(dz_alloc::DEALLOC, 0);
+	DZ_ALLOC_RESULT(address);
 	GeneralMemoryAllocator::get().dealloc(address);
 #endif
 }
 void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
+	DZ_ALLOC_SCOPE(dz_alloc::ALLOC_EXTERNAL, requiredSize);
 	if (audioRoutineDepth) [[unlikely]] {
 		noteSyncAllocInAudioRoutine(__builtin_return_address(0));
 	}
@@ -162,6 +167,7 @@ void* GeneralMemoryAllocator::allocExternalImpl(uint32_t requiredSize) {
 }
 
 void* GeneralMemoryAllocator::allocInternal(uint32_t requiredSize) {
+	DZ_ALLOC_SCOPE(dz_alloc::ALLOC_INTERNAL, requiredSize);
 	if (audioRoutineDepth) [[unlikely]] {
 		noteSyncAllocInAudioRoutine(__builtin_return_address(0));
 	}
@@ -191,6 +197,8 @@ void* GeneralMemoryAllocator::allocInternalImpl(uint32_t requiredSize) {
 	return address;
 }
 void GeneralMemoryAllocator::deallocExternal(void* address) {
+	DZ_ALLOC_SCOPE(dz_alloc::DEALLOC_EXTERNAL, 0);
+	DZ_ALLOC_RESULT(address);
 	if (audioRoutineDepth) [[unlikely]] {
 		noteSyncDeallocInAudioRoutine(__builtin_return_address(0));
 	}
@@ -202,6 +210,7 @@ void GeneralMemoryAllocator::deallocExternal(void* address) {
 // available.
 void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam, bool makeStealable,
                                     void* thingNotToStealFrom) {
+	DZ_ALLOC_SCOPE(dz_alloc::ALLOC, requiredSize);
 	if (audioRoutineDepth) [[unlikely]] {
 		noteSyncAllocInAudioRoutine(__builtin_return_address(0));
 	}
@@ -220,6 +229,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 			address = allocInternalImpl(requiredSize);
 
 			if (address != nullptr) {
+				DZ_ALLOC_RESULT(address);
 				return address;
 			}
 
@@ -230,6 +240,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 		address = allocExternalImpl(requiredSize);
 
 		if (address) {
+			DZ_ALLOC_RESULT(address);
 			return address;
 		}
 
@@ -248,6 +259,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 	lock = true;
 	address = regions[MEMORY_REGION_STEALABLE].alloc(requiredSize, makeStealable, thingNotToStealFrom);
 	lock = false;
+	DZ_ALLOC_RESULT(address);
 	return address;
 }
 
@@ -282,6 +294,7 @@ int32_t GeneralMemoryAllocator::getRegion(void* address) {
 
 // Returns new size
 uint32_t GeneralMemoryAllocator::shortenRight(void* address, uint32_t newSize) {
+	DZ_ALLOC_SCOPE(dz_alloc::SHORTEN, newSize);
 	if (audioRoutineDepth) [[unlikely]] {
 		noteSyncDeallocInAudioRoutine(__builtin_return_address(0));
 	}
@@ -291,6 +304,7 @@ uint32_t GeneralMemoryAllocator::shortenRight(void* address, uint32_t newSize) {
 // Returns how much it was shortened by
 uint32_t GeneralMemoryAllocator::shortenLeft(void* address, uint32_t amountToShorten,
                                              uint32_t numBytesToMoveRightIfSuccessful) {
+	DZ_ALLOC_SCOPE(dz_alloc::SHORTEN, amountToShorten);
 	if (audioRoutineDepth) [[unlikely]] {
 		noteSyncDeallocInAudioRoutine(__builtin_return_address(0));
 	}
@@ -300,6 +314,7 @@ uint32_t GeneralMemoryAllocator::shortenLeft(void* address, uint32_t amountToSho
 void GeneralMemoryAllocator::extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend,
                                     uint32_t* __restrict__ getAmountExtendedLeft,
                                     uint32_t* __restrict__ getAmountExtendedRight, void* thingNotToStealFrom) {
+	DZ_ALLOC_SCOPE(dz_alloc::EXTEND, minAmountToExtend);
 
 	*getAmountExtendedLeft = 0;
 	*getAmountExtendedRight = 0;
@@ -322,6 +337,8 @@ uint32_t GeneralMemoryAllocator::extendRightAsMuchAsEasilyPossible(void* address
 }
 
 void GeneralMemoryAllocator::dealloc(void* address) {
+	DZ_ALLOC_SCOPE(dz_alloc::DEALLOC, 0);
+	DZ_ALLOC_RESULT(address);
 	if (address == nullptr) [[unlikely]] {
 		return;
 	}
