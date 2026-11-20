@@ -25,6 +25,7 @@
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
+#include "io/debug/dz_probe.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
@@ -693,7 +694,8 @@ void InstrumentClip::pingpongOccurred(ModelStackWithTimelineCounter* modelStack)
 	}
 }
 
-void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t ticksSinceLast) {
+DZ_NOINLINE void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t ticksSinceLast) {
+	DZ_SCOPE(dz::SCOPE_CLIP_POS);
 
 	Clip::processCurrentPos(modelStack, ticksSinceLast);
 	if (modelStack->getTimelineCounter() != this) {
