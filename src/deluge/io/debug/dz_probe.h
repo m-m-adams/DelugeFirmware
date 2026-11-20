@@ -73,6 +73,10 @@ void renderEnd(uint32_t numSamples, uint32_t hops, uint32_t timerAfter); ///< en
 
 /// Sound::noteOn() asked to start a voice (fromPending false) or process_postarp_notes() asked to start a pending one
 void voiceStartAsked(bool allowed, bool fromPending);
+/// E3: a note-on was held back from the tick (DeferredNoteOns); counted like a refusal in the tick
+void noteDeferred();
+/// E3: true while DeferredNoteOns sends held-back notes, so their voice starts count as pending starts
+extern bool dispatchingDeferred;
 
 class Scope {
 public:
@@ -123,6 +127,9 @@ inline void renderEnd(uint32_t, uint32_t, uint32_t) {
 }
 inline void voiceStartAsked(bool, bool) {
 }
+inline void noteDeferred() {
+}
+inline bool dispatchingDeferred = false;
 #define DZ_SCOPE(slot)
 #define DZ_NOINLINE
 

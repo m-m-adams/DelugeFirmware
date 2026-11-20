@@ -442,7 +442,11 @@ void renderAudioBegin() {
 	rRenderStart = cycles();
 }
 
+bool dispatchingDeferred = false;
+
 void voiceStartAsked(bool allowed, bool fromPending) {
+	// E3: a held-back note-on sent from a render counts as a pending note started (or refused)
+	fromPending |= dispatchingDeferred;
 	DzWindow& w = win();
 	if (fromPending) {
 		if (allowed) {
@@ -478,6 +482,11 @@ void voiceStartAsked(bool allowed, bool fromPending) {
 	rRefused++;
 	pending++;
 	w.maxPending = std::max<uint32_t>(w.maxPending, pending);
+}
+
+void noteDeferred() {
+	// E3: held back from the tick instead of being refused there - same counters as a refusal
+	voiceStartAsked(false, false);
 }
 
 void renderEnd(uint32_t numSamples, uint32_t hops, uint32_t timerAfter) {

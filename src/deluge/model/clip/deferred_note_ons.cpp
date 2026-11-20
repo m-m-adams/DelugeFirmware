@@ -17,6 +17,7 @@
 
 #include "model/clip/deferred_note_ons.h"
 #include "definitions_cxx.hpp"
+#include "io/debug/dz_probe.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -152,6 +153,7 @@ bool tryDefer(InstrumentClip* clip, PendingNoteOn const& note) {
 	    .swungTickQueued = playbackHandler.lastSwungTickActioned,
 	    .velocity = note.velocity,
 	};
+	dz::noteDeferred();
 	return true;
 }
 
@@ -167,7 +169,9 @@ void sendWhatCanStart() {
 		// Take it out first: sending it can stop other notes (and so call forgetNoteRow())
 		DeferredNoteOn deferred = queue[0];
 		removeAt(0);
+		dz::dispatchingDeferred = true;
 		send(deferred);
+		dz::dispatchingDeferred = false;
 	}
 }
 
