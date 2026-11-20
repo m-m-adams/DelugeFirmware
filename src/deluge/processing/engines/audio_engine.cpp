@@ -40,6 +40,7 @@
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_queue.h"
 #include "memory/general_memory_allocator.h"
+#include "model/clip/deferred_note_ons.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
@@ -913,6 +914,10 @@ bool calledFromScheduler = false;
 	tickSongFinalizeWindows(numSamples);
 	uint32_t renderStartTicks = getSystemTicks();
 
+	// Note-ons the song tick (this one or an earlier one) held back because they couldn't have started a voice then.
+	// Counted as part of the render, like the pending notes Sound::render() would otherwise start
+	DeferredNoteOns::sendWhatCanStart();
+
 	numSamplesLastTime = numSamples;
 
 	// Bring the USB input up to where this render will read it, just like the codec's DMA has for the SSI RX buffer
@@ -1403,6 +1408,7 @@ void routine() {
 				// rest of the export and stems come out silent (issue #5010).
 				voices_started_this_render = 0;
 				tickSongFinalizeWindows(numSamples);
+				DeferredNoteOns::sendWhatCanStart();
 				sendWindowOutputsNow();
 
 				numSamplesLastTime = numSamples;
@@ -1822,13 +1828,22 @@ void getReverbParamsFromSong(Song* song) {
 	reverbSidechain.syncLevel = song->reverbSidechainSync;
 }
 
+namespace {
+int32_t voiceStartsAllowedPerRender() {
+	return cpuDireness > 12 ? 1 : 4;
+}
+} // namespace
+
 bool allowedToStartVoice() {
-	auto threshold = cpuDireness > 12 ? 1 : 4;
-	if (voices_started_this_render < threshold) {
+	if (voices_started_this_render < voiceStartsAllowedPerRender()) {
 		voices_started_this_render += 1;
 		return true;
 	}
 	return false;
+}
+
+bool wouldRefuseVoiceStart() {
+	return voices_started_this_render >= voiceStartsAllowedPerRender();
 }
 
 VoiceSample* solicitVoiceSample() {
