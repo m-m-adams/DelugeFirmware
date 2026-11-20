@@ -661,6 +661,10 @@ inline void setDireness(size_t numSamples, int32_t timeTilNextTick) {
 	// plus a song tick if one's due first
 	int32_t queued = SSI_TX_BUFFER_NUM_SAMPLES - (int32_t)numSamples;
 	size_t renderSize = getRenderSize(numSamples, timeTilNextTick);
+	// If a tick falls within the window, tickSongFinalizeWindows() will cut the render short there
+	if (timeTilNextTick > 0) {
+		renderSize = std::min<size_t>(renderSize, timeTilNextTick);
+	}
 	int32_t predicted = (int32_t)(songTickReserve(timeTilNextTick) + renderCost.predict(renderSize));
 	int32_t margin = queued - predicted;
 	numSamples = std::max<int32_t>(numSamplesLimit + kCullMargin - margin, 0);
