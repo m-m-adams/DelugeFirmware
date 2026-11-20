@@ -634,8 +634,8 @@ size_t getRenderSize(size_t numSamples, int32_t timeTilNextTick) {
 	// when the CPU's busy, doubling can make a render take longer than the backlog it's catching up on. Never fewer
 	// than there's space for, though
 	if (numSamples > spaceInBuffer) {
-		float timeAvailable =
-		    (float)(SSI_TX_BUFFER_NUM_SAMPLES - spaceInBuffer - kRenderSafetyMargin) - songTickReserve(timeTilNextTick);
+		float timeAvailable = (float)(SSI_TX_BUFFER_NUM_SAMPLES - (int32_t)spaceInBuffer - kRenderSafetyMargin)
+		                      - songTickReserve(timeTilNextTick);
 		float sizeAllowed = renderCost.sizeFor(timeAvailable);
 		if (sizeAllowed < (float)numSamples) {
 			numSamples = std::max(spaceInBuffer, (size_t)std::max(sizeAllowed, 0.f));
