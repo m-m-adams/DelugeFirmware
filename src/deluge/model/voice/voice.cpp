@@ -24,6 +24,7 @@
 #include "dsp/timestretch/time_stretcher.h"
 #include "dsp/util.hpp"
 #include "gui/waveform/waveform_renderer.h"
+#include "io/debug/dz_probe.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
@@ -108,10 +109,11 @@ void Voice::unassignStuff(bool deletingSong) {
 uint32_t lastSoundOrder = 0;
 
 // Returns false if fail and we need to unassign again
-bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
-                   int32_t newNoteCodeAfterArpeggiation, uint8_t velocity, uint32_t newSampleSyncLength,
-                   int32_t ticksLate, uint32_t samplesLate, bool resetEnvelopes, int32_t newFromMIDIChannel,
-                   const int16_t* mpeValues) {
+DZ_NOINLINE bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
+                               int32_t newNoteCodeAfterArpeggiation, uint8_t velocity, uint32_t newSampleSyncLength,
+                               int32_t ticksLate, uint32_t samplesLate, bool resetEnvelopes, int32_t newFromMIDIChannel,
+                               const int16_t* mpeValues) {
+	DZ_SCOPE(dz::SCOPE_VOICE_NOTE_ON);
 
 	GeneralMemoryAllocator::get().checkStack("Voice::noteOn");
 
