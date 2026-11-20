@@ -998,9 +998,13 @@ workNormally:
 			// Or if closer to wrap-point...
 			else {
 
-				// If can't or won't grab some extra memory at the wrap-point...
-				if (!attemptMemoryExpansion(numToInsert, numToInsert + numExtraSpacesToAllocate,
-				                            !staticMemoryAllocationSize, thingNotToStealFrom)) {
+				// If can't or won't grab some extra memory at the wrap-point... In the audio routine, don't even ask
+				// the GMA if we can make do with what we have (it would usually say no anyway - e.g. the
+				// arpeggiators' note arrays reach their wrap-point every few notes)
+				bool mayExtend = !staticMemoryAllocationSize
+				                 && !(newNum <= memorySize && GeneralMemoryAllocator::get().inAudioRoutine());
+				if (!attemptMemoryExpansion(numToInsert, numToInsert + numExtraSpacesToAllocate, mayExtend,
+				                            thingNotToStealFrom)) {
 
 					// If we do actually have enough memory, working "normally" is still an option, and it's now the
 					// best option

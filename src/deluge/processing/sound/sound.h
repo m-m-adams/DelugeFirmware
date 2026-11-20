@@ -319,6 +319,8 @@ public:
 
 	/// @brief Get the voices for this sound
 	[[nodiscard]] const deluge::fast_vector<ActiveVoice>& voices() const { return voices_; }
+	/// Grow voices_'s capacity if the render asked for it (see acquireVoice()). Called outside the audio routine.
+	void growVoiceCapacityIfWanted();
 
 	/// @brief Releases a given voice from the Sound
 	/// @param voice The voice to release
@@ -367,6 +369,9 @@ private:
 	// Went with a vector instead of a list so that we don't need to always allocate if
 	// we're constantly cycling between a minimum and maximum number of voices.
 	deluge::fast_vector<ActiveVoice> voices_;
+	/// The render is close to filling voices_'s capacity: grow it from the deferred-allocation task, so the song tick
+	/// doesn't have to reallocate it
+	bool wantsVoiceCapacity_ = false;
 
 	/// @brief Acquire a voice for use by a note
 	/// Internally this will either acquire a new voice or steal an existing one

@@ -226,6 +226,8 @@ extern uint8_t numHopsEndedThisRoutineCall;
 extern SideChain reverbSidechain;
 extern uint32_t timeThereWasLastSomeReverb;
 extern deluge::fast_vector<Sound*> sounds;
+/// Some Sound has set wantsVoiceCapacity_ (see Sound::acquireVoice())
+extern bool anySoundWantsVoiceCapacity;
 extern deluge::dsp::Reverb reverb;
 extern uint32_t nextVoiceState;
 extern SoundDrum* sampleForPreview;

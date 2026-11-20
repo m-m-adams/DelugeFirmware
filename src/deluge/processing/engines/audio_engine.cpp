@@ -302,6 +302,7 @@ MonitoringAction monitoringAction;
 uint32_t saddr;
 
 deluge::fast_vector<Sound*> sounds;
+bool anySoundWantsVoiceCapacity = false;
 TaskID routine_task_id = -1;
 
 // You must set up dynamic memory allocation before calling this, because of its call to setupWithPatching()
@@ -329,6 +330,16 @@ void init() {
 	i2sRXBufferPos = (uint32_t)getRxBufferStart()
 	                 + ((SSI_RX_BUFFER_NUM_SAMPLES - SSI_TX_BUFFER_NUM_SAMPLES - 16)
 	                    << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE)); // Subtracting 5 or more seems fine
+
+	// Work the deferred-allocation task does for the render besides GMA requests: grow Sounds' voice lists
+	GeneralMemoryAllocator::get().setDeferredMaintenance([]() {
+		if (anySoundWantsVoiceCapacity) {
+			anySoundWantsVoiceCapacity = false;
+			for (Sound* sound : sounds) {
+				sound->growVoiceCapacityIfWanted();
+			}
+		}
+	});
 
 	VoicePool::get().repopulate();
 	VoiceSamplePool::get().repopulate();

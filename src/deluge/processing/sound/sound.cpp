@@ -126,6 +126,19 @@ Sound::Sound() : patcher(kPatcherConfigForSound, globalSourceValues, paramFinalV
 
 	doneReadingFromFile();
 	AudioEngine::sounds.push_back(this);
+	try {
+		voices_.reserve(4); // so the song tick doesn't allocate for the first few voices
+	} catch (deluge::exception e) {}
+}
+
+void Sound::growVoiceCapacityIfWanted() {
+	if (!wantsVoiceCapacity_) {
+		return;
+	}
+	wantsVoiceCapacity_ = false;
+	try {
+		voices_.reserve(std::max<size_t>(voices_.capacity() * 2, 4));
+	} catch (deluge::exception e) {}
 }
 
 void Sound::initParams(ParamManager* paramManager) {
@@ -4973,6 +4986,12 @@ const Sound::ActiveVoice& Sound::acquireVoice() noexcept(false) {
 	}
 
 	const ActiveVoice* voice = nullptr;
+	if (voices_.size() + 2 > voices_.capacity() && GeneralMemoryAllocator::get().inAudioRoutine()) [[unlikely]] {
+		// Have the deferred-allocation task grow voices_ before it's full (if it does fill up first, push_back()
+		// below still reallocates - a synchronous allocation in the audio routine, counted in deferredAllocStats)
+		wantsVoiceCapacity_ = true;
+		AudioEngine::anySoundWantsVoiceCapacity = true;
+	}
 	try {
 		voices_.push_back(AudioEngine::VoicePool::get().acquire(*this));
 		voice = &voices_.back();
