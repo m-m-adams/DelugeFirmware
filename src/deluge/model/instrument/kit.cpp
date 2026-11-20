@@ -1252,7 +1252,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 					}
 					soundDrum->noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
 				}
-				soundDrum->process_postarp_notes(modelStackWithSoundFlags, &drum->arpSettings, instruction);
+				soundDrum->startArpNoteOns(modelStackWithSoundFlags, instruction);
 			}
 			else if (thisNoteRow->drum->type == DrumType::MIDI || thisNoteRow->drum->type == DrumType::GATE) {
 				NonAudioDrum* nonAudioDrum = (NonAudioDrum*)thisNoteRow->drum;
