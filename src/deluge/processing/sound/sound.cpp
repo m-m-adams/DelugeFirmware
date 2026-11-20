@@ -26,6 +26,8 @@
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
+#include "io/debug/dz_notelog.h"
+#include "processing/sound/sound_drum.h"
 #include "io/debug/dz_probe.h"
 #include "io/midi/midi_engine.h"
 #include "memory/fast_allocator.h"
@@ -1647,6 +1649,8 @@ DZ_NOINLINE void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelSta
                                               uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
                                               int32_t fromMIDIChannel) {
 	DZ_SCOPE(dz::SCOPE_NOTE_ON_POST);
+	dz::noteLog(isDrum() ? static_cast<SoundDrum*>(this)->getName() : static_cast<SoundInstrument*>(this)->name.get(),
+	            noteCodePostArp, velocity, 1);
 	const ActiveVoice* voiceToReuse = nullptr;
 	const ActiveVoice* voiceForLegato = nullptr;
 
@@ -1821,6 +1825,8 @@ void Sound::allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBa
 
 // noteCode = ALL_NOTES_OFF (default) means stop *any* voice, regardless of noteCode
 void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCode) {
+	dz::noteLog(isDrum() ? static_cast<SoundDrum*>(this)->getName() : static_cast<SoundInstrument*>(this)->name.get(),
+	            noteCode, 0, 2);
 	// Send midi note offs out for specific notes,
 	// but only if the type of sound allows note tails (if not, note off was already sent right after its note on)
 	if (outputMidiChannel != MIDI_CHANNEL_NONE && allowNoteTails(modelStack, true)) {
