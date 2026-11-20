@@ -2212,12 +2212,11 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 	// ModelStack, cos many deeper-nested functions called by this one need it too!
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
-	// A note that couldn't get a voice yet is only ever started from render(), so we must keep rendering while one is
-	// pending - otherwise it'd stay pending forever (issue #2262)
+	// A note still waiting for a voice doesn't need us rendering: DeferredNoteOns starts it, and the new voice takes us
+	// out of render-skipping
 	bool skippingStatusNow =
 	    (voices_.empty() && (delay.repeatsUntilAbandon == 0u) && !stutterer.isStuttering(this)
-	     && ((arpSettings == nullptr) || !getArp()->hasAnyInputNotesActive() || arpSettings->mode == ArpMode::OFF)
-	     && !getArp()->hasPendingNotes(arpSettings));
+	     && ((arpSettings == nullptr) || !getArp()->hasAnyInputNotesActive() || arpSettings->mode == ArpMode::OFF));
 
 	if (skippingStatusNow != skippingRendering) {
 
@@ -2386,10 +2385,6 @@ void Sound::startArpNoteOns(ModelStackWithSoundFlags* modelStack, ArpReturnInstr
 		if (arpNote->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 			break;
 		}
-		// Already started (or queued) by an earlier call
-		if (arpNote->noteStatus[n] != ArpNoteStatus::PENDING) {
-			continue;
-		}
 		DeferredNoteOns::startVoice(
 		    modelStack, *this,
 		    {
@@ -2496,9 +2491,6 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    arpSettings->getPhaseIncrement(paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
 
 		getArp()->render(arpSettings, &instruction, output.size(), gateThreshold, phaseIncrement);
-	}
-	else {
-		getArp()->handlePendingNotes(arpSettings, &instruction);
 	}
 	bool atLeastOneOff = false;
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
