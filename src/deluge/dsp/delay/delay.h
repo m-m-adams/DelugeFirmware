@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/convolution/impulse_response_processor.h"
 #include "dsp/delay/delay_buffer.h"
+#include "memory/deferred_alloc.h"
 #include "model/sync.h"
 
 #include <cstdint>
@@ -83,6 +84,12 @@ public:
 	void process(std::span<StereoSample> buffer, const State& delayWorkingState);
 
 private:
+	/// Set up secondaryBuffer for this rate, in memory from pendingMemory_. In the render the memory is only asked
+	/// for: until it arrives this returns INSUFFICIENT_RAM and the delay carries on as it was (silent if it's just
+	/// starting - the dry signal passes through)
+	Error acquireSecondaryBuffer(uint32_t rate, uint32_t failIfThisSize);
+	DeferredAlloc pendingMemory_;
+
 	void prepareToBeginWriting();
 	[[nodiscard]] constexpr int32_t getAmountToWriteBeforeReadingBegins() const { return secondaryBuffer.size(); }
 };

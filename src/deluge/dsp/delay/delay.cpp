@@ -39,7 +39,7 @@ void Delay::informWhetherActive(bool newActive, int32_t userDelayRate) {
 		}
 
 setupSecondaryBuffer:
-		Error result = secondaryBuffer.init(userDelayRate);
+		Error result = acquireSecondaryBuffer(userDelayRate, 0);
 		if (result != Error::NONE) {
 			return;
 		}
@@ -50,6 +50,11 @@ setupSecondaryBuffer:
 	}
 
 	// Or if no change...
+
+	// Stopped wanting to be active before the memory arrived: don't hang on to it
+	if (!newActive && pendingMemory_.state() != DeferredAlloc::State::EMPTY) {
+		pendingMemory_.reset();
+	}
 
 	// If it already was active...
 	if (previouslyActive) {
@@ -195,7 +200,22 @@ void Delay::hasWrapped() {
 	}
 }
 
+Error Delay::acquireSecondaryBuffer(uint32_t rate, uint32_t failIfThisSize) {
+	auto [size, clamped] = DelayBuffer::getIdealBufferSizeFromRate(rate);
+	if (size == failIfThisSize) {
+		return Error::UNSPECIFIED;
+	}
+	void* memory = pendingMemory_.request(DelayBuffer::bytesForRate(rate), AllocRegion::LOW_SPEED);
+	if (memory == nullptr) {
+		return Error::INSUFFICIENT_RAM; // on its way (or out of memory) - we'll be asked again next render
+	}
+	pendingMemory_.take();
+	secondaryBuffer.initWithMemory(rate, memory);
+	return Error::NONE;
+}
+
 void Delay::discardBuffers() {
+	pendingMemory_.reset();
 	primaryBuffer.discard();
 	secondaryBuffer.discard();
 	prevFeedback = 0;
@@ -203,7 +223,7 @@ void Delay::discardBuffers() {
 }
 
 void Delay::initializeSecondaryBuffer(int32_t newNativeRate, bool makeNativeRatePreciseRelativeToOtherBuffer) {
-	Error result = secondaryBuffer.init(newNativeRate, primaryBuffer.size());
+	Error result = acquireSecondaryBuffer(newNativeRate, primaryBuffer.size());
 	if (result != Error::NONE) {
 		return;
 	}

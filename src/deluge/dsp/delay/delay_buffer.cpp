@@ -56,6 +56,22 @@ Error DelayBuffer::init(uint32_t rate, uint32_t failIfThisSize, bool includeExtr
 	return Error::NONE;
 }
 
+void DelayBuffer::initWithMemory(uint32_t rate, void* memory, bool includeExtraSpace) {
+	auto [size, make_precise] = getIdealBufferSizeFromRate(rate);
+
+	native_rate_ = rate;
+	size_ = size;
+
+	if (make_precise) {
+		makeNativeRatePrecise();
+	}
+
+	sizeIncludingExtra = size_ + (includeExtraSpace ? delaySpaceBetweenReadAndWrite : 0);
+	start_ = (StereoSample*)memory;
+	end_ = start_ + sizeIncludingExtra;
+	clear();
+}
+
 void DelayBuffer::clear() {
 	memset(start_, 0, sizeof(StereoSample) * (delaySpaceBetweenReadAndWrite + 2));
 	current_ = start_ + delaySpaceBetweenReadAndWrite;
@@ -92,7 +108,7 @@ void DelayBuffer::makeNativeRatePreciseRelativeToOtherBuffer(const DelayBuffer& 
 
 void DelayBuffer::discard() {
 	if (start_ != nullptr) {
-		delugeDealloc(start_);
+		deallocDeferred(start_); // may be called in the render (e.g. when the delay tail has died away)
 		start_ = nullptr;
 	}
 }

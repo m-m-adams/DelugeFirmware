@@ -36,7 +36,15 @@ public:
 
 	DelayBuffer() = default;
 	~DelayBuffer() { discard(); }
+	/// Allocates the buffer (synchronously - not for the audio routine; Delay uses initWithMemory())
 	Error init(uint32_t newRate, uint32_t failIfThisSize = 0, bool includeExtraSpace = true);
+	/// Like init(), but in memory the caller allocated (at least bytesForRate() bytes), which the buffer then owns
+	void initWithMemory(uint32_t newRate, void* memory, bool includeExtraSpace = true);
+	/// Bytes of memory a buffer for this rate needs
+	static uint32_t bytesForRate(uint32_t rate, bool includeExtraSpace = true) {
+		return (getIdealBufferSizeFromRate(rate).first + (includeExtraSpace ? delaySpaceBetweenReadAndWrite : 0))
+		       * sizeof(StereoSample);
+	}
 
 	// Prevent the delaybuffer from deallocing the Sample array on destruction
 	// TODO (Kate): investigate a shared_ptr for start_
