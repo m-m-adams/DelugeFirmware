@@ -229,6 +229,7 @@ extern deluge::fast_vector<Sound*> sounds;
 extern deluge::dsp::Reverb reverb;
 extern uint32_t nextVoiceState;
 extern SoundDrum* sampleForPreview;
+extern ParamManagerForTimeline* paramManagerForSamplePreview;
 extern int32_t reverbSidechainVolume;
 extern int32_t reverbSidechainShape;
 extern int32_t reverbPan;
@@ -261,6 +262,8 @@ constexpr bool isCodecInput(AudioInputChannel channel) {
 
 /// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick
 bool allowedToStartVoice();
+/// Whether allowedToStartVoice() would refuse right now (without counting a start)
+bool wouldRefuseVoiceStart();
 
 /// Remove these gate channels from any output waiting to be sent by the MIDI/gate timer, because they've been
 /// superseded by a newer state which is being output now
