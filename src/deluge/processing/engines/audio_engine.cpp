@@ -551,13 +551,16 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 	auto max_num_samples = numSamplesLimit + (20 * voices_started_this_render);
 	static int32_t last_num_samples_over = 0;
 	int32_t num_samples_over_limit = numSamples - max_num_samples;
+	// But not once the margin is nearly gone: the margin is predicted for the next render, voice starts and all, so a
+	// start doesn't make that any less likely to run the codec dry
+	int32_t num_samples_over_hard_limit = numSamples - numSamplesLimit;
 
 	if (numAudio + numVoice > MIN_VOICES) {
 
 		// If it's real dire, do a proper immediate cull
-		if (num_samples_over_limit >= 32) {
+		if (num_samples_over_hard_limit >= 32) {
 
-			int32_t num_to_cull = (num_samples_over_limit >> 4);
+			int32_t num_to_cull = (num_samples_over_hard_limit >> 4);
 			// leave at least 7 - below this point culling won't save us
 			// if they can't load their sample in time they'll stop the same way anyway
 			num_to_cull = std::min(num_to_cull, numAudio + numVoice - MIN_VOICES);
