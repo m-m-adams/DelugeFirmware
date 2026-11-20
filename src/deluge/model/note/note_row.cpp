@@ -20,6 +20,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
+#include "io/debug/dz_probe.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_device.h"
 #include "memory/general_memory_allocator.h"
@@ -2035,8 +2036,9 @@ SequenceDirection NoteRow::getEffectiveSequenceDirectionMode(ModelStackWithNoteR
 }
 
 // Returns num ticks til next event
-int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ticksSinceLast,
-                                   PendingNoteOnList* pendingNoteOnList) {
+DZ_NOINLINE int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ticksSinceLast,
+                                               PendingNoteOnList* pendingNoteOnList) {
+	DZ_SCOPE(dz::SCOPE_NOTE_ROW_POS);
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
