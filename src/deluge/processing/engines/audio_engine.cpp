@@ -121,9 +121,11 @@ int16_t zeroMPEValues[kNumExpressionDimensions] = {0, 0, 0};
 namespace AudioEngine {
 
 // Culling and direness work from the predicted margin: how much of what's queued for the codec will be left when the
-// next render is done, in samples. (Not the time the audio routine takes: when catching up it renders twice, or renders
-// bigger blocks, which takes longer without the CPU being any more overloaded.) Culling starts when the margin is
-// kCullMargin or less, and a hard cull happens 32 below that. Direness starts rising 30 above it.
+// next render is done, in samples - for the smallest render that keeps up, as many samples as there's space for.
+// (Not the time the audio routine takes: when catching up it renders twice, or renders bigger blocks, which takes
+// longer without the CPU being any more overloaded. getRenderSize() only makes a render bigger as far as it still
+// leaves kRenderSafetyMargin.) Culling starts when the margin is kCullMargin or less, and a hard cull happens 32 below
+// that. Direness starts rising 30 above it.
 constexpr int32_t kCullMargin = 48;
 // The scale cullVoices() and the direness work on, which the margin is mapped onto: numSamplesLimit at kCullMargin
 constexpr int32_t numSamplesLimit = 80;
@@ -655,9 +657,13 @@ size_t getRenderSize(size_t numSamples, int32_t timeTilNextTick) {
 inline void setDireness(size_t numSamples, int32_t timeTilNextTick) {
 	// numSamples is the space in the output buffer, so the rest is still queued for the codec. The next render won't
 	// output anything until it's done, so predict how long it'll take from its size and what recent renders have cost,
-	// plus a song tick if one's due first
+	// plus a song tick if one's due first.
+	// Judge that on the smallest render that keeps up - one that fills the space. getRenderSize() may then make it
+	// bigger to catch up, but only while it's predicted to leave kRenderSafetyMargin of what's queued - and above about
+	// half load, doubling grows renders until they nearly reach that. Judged on that bigger render, the margin would
+	// say where the doubling happened to stop rather than whether the CPU can keep up.
 	int32_t queued = SSI_TX_BUFFER_NUM_SAMPLES - (int32_t)numSamples;
-	size_t renderSize = getRenderSize(numSamples, timeTilNextTick);
+	size_t renderSize = numSamples;
 	// If a tick falls within the window, tickSongFinalizeWindows() will cut the render short there
 	if (timeTilNextTick > 0) {
 		renderSize = std::min<size_t>(renderSize, timeTilNextTick);
