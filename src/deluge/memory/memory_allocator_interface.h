@@ -7,6 +7,9 @@ void* allocMaxSpeed(uint32_t requiredSize, void* thingNotToStealFrom = nullptr);
 
 void* allocLowSpeed(uint32_t requiredSize, void* thingNotToStealFrom = nullptr);
 
+/// GeneralMemoryAllocator::deallocDeferred(): frees now, or (in the audio routine) queues the free for later
+void deallocDeferred(void* address);
+
 extern "C" {
 void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam);
 void delugeDealloc(void* address);

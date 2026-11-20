@@ -502,6 +502,10 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 
 	audioFileManager.loadAnyEnqueuedClusters(mayProcessUserActionsBetween);
 
+	// Give the render the memory it asked for, now that we're outside it - this is called in long-running
+	// operations (song loading etc.) where the deferred allocation task might not get to run for a while
+	GeneralMemoryAllocator::get().serviceDeferred();
+
 	if (!routineBeenCalled) {
 		// bypassCulling = true; // yolo? Sean: not sure if this is necessary
 
@@ -1369,6 +1373,8 @@ void routine() {
 	}
 
 	audioRoutineLocked = true;
+	// From here until we're done, GMA allocations through DeferredAlloc are deferred to a low-priority task
+	GeneralMemoryAllocator::get().audioRoutineDepth++;
 
 	numRoutines = 0;
 	if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
@@ -1440,6 +1446,7 @@ void routine() {
 			}
 		}
 	}
+	GeneralMemoryAllocator::get().audioRoutineDepth--;
 	audioRoutineLocked = false;
 	routineBeenCalled = true;
 }

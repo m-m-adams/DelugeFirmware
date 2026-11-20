@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "memory/deferred_alloc.h"
 #include "memory/memory_region.h"
 #include "memory/stealable.h"
 #include <concepts>
@@ -100,6 +101,22 @@ public:
 	int32_t getRegion(void* address);
 	void testMemoryDeallocated(void* address);
 
+	// ---- Deferred allocation (see memory/deferred_alloc.h) ----
+	/// Free memory without doing GMA work in the audio routine: frees at once outside it, and inside it queues the
+	/// free for serviceDeferred(). destroy (optional) is called on the memory right before it's freed.
+	void deallocDeferred(void* address, DeferredAlloc::DestroyFn destroy = nullptr);
+	/// Do the queued frees and (some of) the queued allocations. Called by a low-priority task, and before the audio
+	/// routine in routineWithClusterLoading(). Does nothing if called inside the audio routine.
+	void serviceDeferred();
+	/// Extra work for serviceDeferred() to do under the same conditions (outside the audio routine, GMA not locked)
+	void setDeferredMaintenance(void (*fn)()) { deferredMaintenance_ = fn; }
+	/// Allocate in one of the regions a DeferredAlloc can ask for (synchronous).
+	void* allocInRegion(uint32_t requiredSize, AllocRegion region);
+	/// AudioEngine::routine() keeps this nonzero while it runs (the song tick and the render). Allocations requested
+	/// through DeferredAlloc are deferred while it is, and synchronous GMA calls are counted in deferredAllocStats.
+	uint8_t audioRoutineDepth = 0;
+	[[nodiscard]] bool inAudioRoutine() const { return audioRoutineDepth != 0; }
+
 	void putStealableInQueue(Stealable* stealable, StealableQueue q);
 	void putStealableInAppropriateQueue(Stealable* stealable);
 
@@ -118,6 +135,16 @@ public:
 	}
 
 private:
+	friend class DeferredAlloc;
+	void (*deferredMaintenance_)() = nullptr;
+	bool queueDeferred(DeferredAlloc& handle);
+	void resizeDeferred(DeferredAlloc& handle, uint32_t newSize);
+	void cancelDeferred(DeferredAlloc& handle);
+	[[gnu::noinline]] void noteSyncAllocInAudioRoutine(void* caller);
+	[[gnu::noinline]] void noteSyncDeallocInAudioRoutine(void* caller);
+	void* allocExternalImpl(uint32_t requiredSize);
+	void* allocInternalImpl(uint32_t requiredSize);
+
 	void checkEverythingOk(char const* errorString);
 };
 

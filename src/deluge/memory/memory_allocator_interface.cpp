@@ -7,3 +7,7 @@ void* allocMaxSpeed(uint32_t requiredSize, void* thingNotToStealFrom = nullptr) 
 void* allocLowSpeed(uint32_t requiredSize, void* thingNotToStealFrom = nullptr) {
 	return GeneralMemoryAllocator::get().alloc(requiredSize, false, false, thingNotToStealFrom);
 }
+
+void deallocDeferred(void* address) {
+	GeneralMemoryAllocator::get().deallocDeferred(address);
+}

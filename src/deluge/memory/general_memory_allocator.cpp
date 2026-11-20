@@ -131,6 +131,13 @@ extern "C" void delugeDealloc(void* address) {
 #endif
 }
 void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
+	if (audioRoutineDepth) [[unlikely]] {
+		noteSyncAllocInAudioRoutine(__builtin_return_address(0));
+	}
+	return allocExternalImpl(requiredSize);
+}
+
+void* GeneralMemoryAllocator::allocExternalImpl(uint32_t requiredSize) {
 
 	if (lock) {
 		return nullptr; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they
@@ -155,6 +162,13 @@ void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
 }
 
 void* GeneralMemoryAllocator::allocInternal(uint32_t requiredSize) {
+	if (audioRoutineDepth) [[unlikely]] {
+		noteSyncAllocInAudioRoutine(__builtin_return_address(0));
+	}
+	return allocInternalImpl(requiredSize);
+}
+
+void* GeneralMemoryAllocator::allocInternalImpl(uint32_t requiredSize) {
 
 	if (lock) {
 		return nullptr; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they
@@ -177,6 +191,9 @@ void* GeneralMemoryAllocator::allocInternal(uint32_t requiredSize) {
 	return address;
 }
 void GeneralMemoryAllocator::deallocExternal(void* address) {
+	if (audioRoutineDepth) [[unlikely]] {
+		noteSyncDeallocInAudioRoutine(__builtin_return_address(0));
+	}
 	regions[getRegion(address)].dealloc(address);
 }
 
@@ -185,6 +202,9 @@ void GeneralMemoryAllocator::deallocExternal(void* address) {
 // available.
 void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam, bool makeStealable,
                                     void* thingNotToStealFrom) {
+	if (audioRoutineDepth) [[unlikely]] {
+		noteSyncAllocInAudioRoutine(__builtin_return_address(0));
+	}
 
 	if (lock) {
 		return nullptr; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they
@@ -197,7 +217,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 	if (!makeStealable) {
 		// If internal is allowed, try that first
 		if (mayUseOnChipRam) {
-			address = allocInternal(requiredSize);
+			address = allocInternalImpl(requiredSize);
 
 			if (address != nullptr) {
 				return address;
@@ -207,7 +227,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 		}
 
 		// Second try external region
-		address = allocExternal(requiredSize);
+		address = allocExternalImpl(requiredSize);
 
 		if (address) {
 			return address;
@@ -262,12 +282,18 @@ int32_t GeneralMemoryAllocator::getRegion(void* address) {
 
 // Returns new size
 uint32_t GeneralMemoryAllocator::shortenRight(void* address, uint32_t newSize) {
+	if (audioRoutineDepth) [[unlikely]] {
+		noteSyncDeallocInAudioRoutine(__builtin_return_address(0));
+	}
 	return regions[getRegion(address)].shortenRight(address, newSize);
 }
 
 // Returns how much it was shortened by
 uint32_t GeneralMemoryAllocator::shortenLeft(void* address, uint32_t amountToShorten,
                                              uint32_t numBytesToMoveRightIfSuccessful) {
+	if (audioRoutineDepth) [[unlikely]] {
+		noteSyncDeallocInAudioRoutine(__builtin_return_address(0));
+	}
 	return regions[getRegion(address)].shortenLeft(address, amountToShorten, numBytesToMoveRightIfSuccessful);
 }
 
@@ -277,6 +303,9 @@ void GeneralMemoryAllocator::extend(void* address, uint32_t minAmountToExtend, u
 
 	*getAmountExtendedLeft = 0;
 	*getAmountExtendedRight = 0;
+	if (audioRoutineDepth) [[unlikely]] {
+		noteSyncAllocInAudioRoutine(__builtin_return_address(0));
+	}
 
 	if (lock) {
 		return;
@@ -295,6 +324,9 @@ uint32_t GeneralMemoryAllocator::extendRightAsMuchAsEasilyPossible(void* address
 void GeneralMemoryAllocator::dealloc(void* address) {
 	if (address == nullptr) [[unlikely]] {
 		return;
+	}
+	if (audioRoutineDepth) [[unlikely]] {
+		noteSyncDeallocInAudioRoutine(__builtin_return_address(0));
 	}
 	regions[getRegion(address)].dealloc(address);
 }

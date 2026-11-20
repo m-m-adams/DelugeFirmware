@@ -598,6 +598,9 @@ void registerTasks() {
 	// formerly part of cluster loading (why? no idea), actions undo/redo midi commands
 	addRepeatingTask([]() { playbackHandler.slowRoutine(); }, p++, 0.01, 0.09, 0.1, "playback slow routine",
 	                 RESOURCE_SD);
+	// does the allocations (and frees) that the audio routine asked for through DeferredAlloc / deallocDeferred()
+	addRepeatingTask([]() { GeneralMemoryAllocator::get().serviceDeferred(); }, p++, 0.0005, 0.002, 0.01,
+	                 "deferred alloc", RESOURCE_NONE);
 	// 31-39: Idle priority (40 for dyn tasks)
 	p = 31;
 	addRepeatingTask(&(PIC::flush), p++, 0.001, 0.001, 0.02, "PIC flush", RESOURCE_NONE);
