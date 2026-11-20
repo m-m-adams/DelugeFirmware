@@ -218,6 +218,13 @@ private:
 };
 SongTickCost songTickCost;
 
+/// The time to keep for a song tick before the next render: songTickCost if one's due at the start of its window, and
+/// none otherwise. Ticks are only ever actioned there - a window that a tick falls in is cut short, so the tick starts
+/// the next one - so a render without one due at its start won't have one at all
+float songTickReserve(int32_t timeTilNextTick) {
+	return timeTilNextTick <= 0 ? songTickCost.get() : 0.f;
+}
+
 // How much of what's queued for the codec a render (and song tick) shouldn't be predicted to use up, in samples, for
 // other tasks and the occasional slower render. Bigger renders are only done if they fit within the rest
 constexpr int32_t kRenderSafetyMargin = 8;
@@ -608,7 +615,7 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 // not in header (private to audio engine)
 /// How many samples to render, given how many there's space for in the output buffer. Can be up to 128
-size_t getRenderSize(size_t numSamples) {
+size_t getRenderSize(size_t numSamples, int32_t timeTilNextTick) {
 	size_t const spaceInBuffer = numSamples;
 	// Double the number of samples we're going to do - within some constraints
 	int32_t sampleThreshold = 6; // If too low, it'll lead to bigger audio windows and stuff
@@ -628,7 +635,7 @@ size_t getRenderSize(size_t numSamples) {
 	// than there's space for, though
 	if (numSamples > spaceInBuffer) {
 		float timeAvailable =
-		    (float)(SSI_TX_BUFFER_NUM_SAMPLES - spaceInBuffer - kRenderSafetyMargin) - songTickCost.get();
+		    (float)(SSI_TX_BUFFER_NUM_SAMPLES - spaceInBuffer - kRenderSafetyMargin) - songTickReserve(timeTilNextTick);
 		float sizeAllowed = renderCost.sizeFor(timeAvailable);
 		if (sizeAllowed < (float)numSamples) {
 			numSamples = std::max(spaceInBuffer, (size_t)std::max(sizeAllowed, 0.f));
@@ -644,14 +651,14 @@ size_t getRenderSize(size_t numSamples) {
 }
 
 // not in header (private to audio engine)
-/// set the direness level and cull any voices
-inline void setDireness(size_t numSamples) { // Consider direness and culling - before increasing the number of samples
+/// set the direness level and cull any voices - before increasing the number of samples
+inline void setDireness(size_t numSamples, int32_t timeTilNextTick) {
 	// numSamples is the space in the output buffer, so the rest is still queued for the codec. The next render won't
 	// output anything until it's done, so predict how long it'll take from its size and what recent renders have cost,
-	// plus a song tick
+	// plus a song tick if one's due first
 	int32_t queued = SSI_TX_BUFFER_NUM_SAMPLES - (int32_t)numSamples;
-	size_t renderSize = getRenderSize(numSamples);
-	int32_t predicted = (int32_t)(songTickCost.get() + renderCost.predict(renderSize));
+	size_t renderSize = getRenderSize(numSamples, timeTilNextTick);
+	int32_t predicted = (int32_t)(songTickReserve(timeTilNextTick) + renderCost.predict(renderSize));
 	int32_t margin = queued - predicted;
 	numSamples = std::max<int32_t>(numSamplesLimit + kCullMargin - margin, 0);
 
@@ -858,6 +865,7 @@ void renderSongFX(size_t numSamples);
 void renderSamplePreview(size_t numSamples);
 void renderReverb(size_t numSamples);
 void tickSongFinalizeWindows(size_t& numSamples);
+int32_t getTimeTilNextSongTick(int32_t* nextTickType = nullptr);
 void flushMIDIGateBuffers();
 void renderAudio(size_t numSamples);
 void renderAudioForStemExport(size_t numSamples);
@@ -901,12 +909,15 @@ bool calledFromScheduler = false;
 	setMIDIDueAtWindowOffset(0);
 
 	flushMIDIGateBuffers();
-	setDireness(numSamples);
+
+	// Whether the song ticks at the start of this window - and if not, where the window will be cut short for one
+	int32_t const timeTilNextTick = getTimeTilNextSongTick();
+	setDireness(numSamples, timeTilNextTick);
 
 	// What's left of the TX buffer is still waiting for the codec, in front of this render
 	size_t const txQueued = SSI_TX_BUFFER_NUM_SAMPLES - numSamples;
 
-	numSamples = getRenderSize(numSamples);
+	numSamples = getRenderSize(numSamples, timeTilNextTick);
 	voices_started_this_render = 0;
 
 	uint32_t tickStartTicks = getSystemTicks();
@@ -1067,27 +1078,41 @@ void flushMIDIGateBuffers() {
 	}
 }
 
-void tickSongFinalizeWindows(size_t& numSamples) {
-	// If a timer-tick is due during or directly after this window of audio samples...
+/// How many samples from the start of the next render window (audioSampleTimer) the next song tick - timer or swung -
+/// is due: 0 or less if it's due right at the start, so the render will action it first. Only looks, so it can be
+/// called ahead of tickSongFinalizeWindows(). 9999 if no clock is running, or no tick is scheduled yet (following an
+/// external clock, before the next input tick)
+int32_t getTimeTilNextSongTick(int32_t* nextTickType) {
+	int32_t tickType = 0;
+	uint32_t timeNextTick = audioSampleTimer + 9999;
+
 	if (playbackHandler.isEitherClockActive()) {
-
-startAgain:
-		int32_t nextTickType = 0;
-		uint32_t timeNextTick = audioSampleTimer + 9999;
-
 		if (playbackHandler.isInternalClockActive()) {
 			timeNextTick = playbackHandler.timeNextTimerTickBig >> 32;
-			nextTickType = TICK_TYPE_TIMER;
+			tickType = TICK_TYPE_TIMER;
 		}
 
 		// Or if a swung tick is scheduled sooner...
 		if (playbackHandler.swungTickScheduled
 		    && (int32_t)(playbackHandler.scheduledSwungTickTime - timeNextTick) < 0) {
 			timeNextTick = playbackHandler.scheduledSwungTickTime;
-			nextTickType = TICK_TYPE_SWUNG;
+			tickType = TICK_TYPE_SWUNG;
 		}
+	}
 
-		int32_t timeTilNextTick = timeNextTick - audioSampleTimer;
+	if (nextTickType != nullptr) {
+		*nextTickType = tickType;
+	}
+	return (int32_t)(timeNextTick - audioSampleTimer);
+}
+
+void tickSongFinalizeWindows(size_t& numSamples) {
+	// If a timer-tick is due during or directly after this window of audio samples...
+	if (playbackHandler.isEitherClockActive()) {
+
+startAgain:
+		int32_t nextTickType = 0;
+		int32_t timeTilNextTick = getTimeTilNextSongTick(&nextTickType);
 
 		// If tick occurs right now at the start of this window - which is fairly likely, cos we would have cut the
 		// previous window short if it had such a tick during it...
