@@ -261,8 +261,10 @@ constexpr bool isCodecInput(AudioInputChannel channel) {
 }
 
 /// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick
+/// Counts a voice start in this render's budget, if there's room. Only DeferredNoteOns starts voices for new notes, so
+/// only it calls these
 bool allowedToStartVoice();
-/// Whether allowedToStartVoice() would refuse right now (without counting a start)
+/// Whether this render's voice-start budget is used up (without counting a start)
 bool wouldRefuseVoiceStart();
 
 /// Remove these gate channels from any output waiting to be sent by the MIDI/gate timer, because they've been

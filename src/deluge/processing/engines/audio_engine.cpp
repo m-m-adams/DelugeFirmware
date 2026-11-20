@@ -1404,8 +1404,8 @@ void routine() {
 
 				size_t numSamples = 32;
 				// routine_() resets this every render, but it never runs while we render offline. Without resetting it
-				// here, allowedToStartVoice() refuses every voice after the first few, so notes stay pending for the
-				// rest of the export and stems come out silent (issue #5010).
+				// here, the per-render voice-start budget is used up after the first few voices, so DeferredNoteOns
+				// holds every later note for the rest of the export and stems come out silent (issue #5010).
 				voices_started_this_render = 0;
 				tickSongFinalizeWindows(numSamples);
 				DeferredNoteOns::sendWhatCanStart();
