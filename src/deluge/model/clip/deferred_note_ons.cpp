@@ -16,6 +16,7 @@
  */
 
 #include "model/clip/deferred_note_ons.h"
+#include "OSLikeStuff/scheduler_api.h"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
 #include "model/clip/instrument_clip.h"
@@ -68,7 +69,7 @@ struct DeferredNoteOn {
 	int64_t swungTickQueued; // playbackHandler.lastSwungTickActioned when queued, which ticksLate is relative to
 };
 
-// A 20-note chord with the start rate down to 1 voice per render queues 19 notes; a few busy kits and synths stepping
+// A 20-note chord on a busy Deluge queues most of its notes for a render or two; a few busy kits and synths stepping
 // together queue a few times that. If it's ever full, notes start straight away instead, over the per-render limit:
 // it's only ever a burst of notes, and a note late by a whole queue's worth of renders would be useless anyway
 constexpr int32_t kMaxDeferred = 256;
@@ -247,11 +248,13 @@ ModelStackWithSoundFlags* setupModelStackForSound(void* memory, Sound* sound) {
 }
 
 void startVoiceNow(ModelStackWithSoundFlags* modelStack, Sound& sound, VoiceStart const& start) {
-	AudioEngine::allowedToStartVoice(); // Counts the start. When the queue is full, this may start one over the limit
+	uint32_t startTicks = getSystemTicks();
 	sound.invertReversed = start.invertReversed;
 	sound.noteOnPostArpeggiator(modelStack, start.noteCodePreArp, start.noteCodePostArp, start.velocity,
 	                            start.mpeValues, start.sampleSyncLength, start.ticksLate, start.samplesLate,
 	                            start.fromMIDIChannel);
+	// Charge it to the budget, and teach the budget what a start costs. When the queue is full, this may go over it
+	AudioEngine::voiceStarted(getSystemTicks() - startTicks);
 }
 
 void sendVoice(DeferredNoteOn const& d) {

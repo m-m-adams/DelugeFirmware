@@ -27,11 +27,12 @@ struct PendingNoteOn;
 
 /// Note-ons that can't start a voice in the current render, held until one that can.
 ///
-/// Only so many voices may start per render (AudioEngine::allowedToStartVoice()), and a voice start is expensive, so a
-/// chord's notes start over several renders. Every voice start a Sound makes goes through startVoice(): it starts now
-/// if this render still may, and otherwise it's queued here. Once per render, after the song tick and before the song
-/// renders, sendWhatCanStart() starts as many queued notes as that render may, oldest first. A queued note always
-/// starts at the start of a render, and never before a note queued earlier for the same Sound.
+/// A voice start is expensive, so voices only start while the time they take fits in the current render
+/// (AudioEngine::wouldRefuseVoiceStart()), and a big chord's notes may start over several renders. Every voice start a
+/// Sound makes goes through startVoice(): it starts now if this render still may, and otherwise it's queued here. Once
+/// per render, after the song tick and before the song renders, sendWhatCanStart() starts as many queued notes as that
+/// render may, oldest first. A queued note always starts at the start of a render, and never before a note queued
+/// earlier for the same Sound.
 ///
 /// There are two kinds of entry:
 /// - A voice start (startVoice()): a note the Sound has already been told about - its arpeggiator, voice priority

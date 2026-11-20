@@ -260,12 +260,11 @@ constexpr bool isCodecInput(AudioInputChannel channel) {
 	return channel < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && channel != AudioInputChannel::USB;
 }
 
-/// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick
-/// Counts a voice start in this render's budget, if there's room. Only DeferredNoteOns starts voices for new notes, so
-/// only it calls these
-bool allowedToStartVoice();
-/// Whether this render's voice-start budget is used up (without counting a start)
+/// The voice-start budget. Only DeferredNoteOns starts voices for new notes, so only it calls these.
+/// Whether another voice start would no longer fit in this render's time (or, between renders, before the next one)
 bool wouldRefuseVoiceStart();
+/// A voice was started, taking this long (system timer ticks, see getSystemTicks())
+void voiceStarted(uint32_t ticksTaken);
 
 /// Remove these gate channels from any output waiting to be sent by the MIDI/gate timer, because they've been
 /// superseded by a newer state which is being output now
