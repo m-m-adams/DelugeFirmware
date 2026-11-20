@@ -1,0 +1,72 @@
+=== base-BU6-lean1: 49.3 s, 54162 renders; asis margin vs recorded: mean |d| 0.03, within 2: 100.0%
+  recorded cull events: 8.1 /5 s
+  asis   hard    4 soft   76 min   0 ->    8.1 events/5 s | margin p1   26 p50   64 | direness 14:100%
+  a      hard    4 soft    3 min   0 ->    0.7 events/5 s | margin p1   33 p50   75 | direness 14:100%
+  a+b    hard    4 soft    3 min   0 ->    0.7 events/5 s | margin p1   33 p50   75 | direness 14:100%
+  a+b+c  hard    0 soft    0 min   0 ->    0.0 events/5 s | margin p1   54 p50   86 | direness 14:100%
+  ab+s24 hard    0 soft    1 min   0 ->    0.1 events/5 s | margin p1   33 p50   75 | direness 14:100%
+  ab+s48 hard    0 soft    0 min   0 ->    0.0 events/5 s | margin p1   48 p50   75 | direness 14:100%
+  ab+s56 hard    0 soft    0 min   0 ->    0.0 events/5 s | margin p1   54 p50   75 | direness 14:100%
+=== base-BU6-lean2: 48.1 s, 52885 renders; asis margin vs recorded: mean |d| 0.02, within 2: 100.0%
+  recorded cull events: 15.1 /5 s
+  asis   hard    8 soft  137 min   0 ->   15.1 events/5 s | margin p1   25 p50   64 | direness 14:100%
+  a      hard    8 soft    9 min   0 ->    1.8 events/5 s | margin p1   33 p50   75 | direness 14:100%
+  a+b    hard    8 soft    9 min   0 ->    1.8 events/5 s | margin p1   33 p50   75 | direness 14:100%
+  a+b+c  hard    0 soft    0 min   0 ->    0.0 events/5 s | margin p1   53 p50   86 | direness 14:100%
+  ab+s24 hard    0 soft    6 min   0 ->    0.6 events/5 s | margin p1   33 p50   75 | direness 14:100%
+  ab+s48 hard    0 soft    0 min   0 ->    0.0 events/5 s | margin p1   48 p50   75 | direness 14:100%
+  ab+s56 hard    0 soft    0 min   0 ->    0.0 events/5 s | margin p1   53 p50   75 | direness 14:100%
+=== base-BU8-lean1: 50.2 s, 57840 renders; asis margin vs recorded: mean |d| 0.04, within 2: 100.0%
+  recorded cull events: 116.4 /5 s
+  asis   hard  750 soft  415 min   0 ->  116.1 events/5 s | margin p1   10 p50   62 | direness 14:100%
+  a      hard  508 soft  275 min   0 ->   78.1 events/5 s | margin p1   17 p50   74 | direness 14:100%
+  a+b    hard  508 soft  275 min   0 ->   78.1 events/5 s | margin p1   17 p50   74 | direness 14:100%
+  a+b+c  hard    0 soft    1 min   0 ->    0.1 events/5 s | margin p1   44 p50   85 | direness 14:100%
+  ab+s24 hard    0 soft  480 min   0 ->   47.8 events/5 s | margin p1   25 p50   74 | direness 14:100%
+  ab+s48 hard    0 soft   32 min   0 ->    3.2 events/5 s | margin p1   45 p50   74 | direness 14:100%
+  ab+s56 hard    0 soft   13 min   0 ->    1.3 events/5 s | margin p1   45 p50   74 | direness 14:100%
+=== base-KIT20-lean1: 48.4 s, 77956 renders; asis margin vs recorded: mean |d| 0.01, within 2: 100.0%
+  recorded cull events: 1.2 /5 s
+  asis   hard    0 soft   12 min   0 ->    1.2 events/5 s | margin p1   53 p50   64 | direness 14:100%
+  a      hard    0 soft    2 min   0 ->    0.2 events/5 s | margin p1   57 p50   93 | direness 14:100%
+  a+b    hard    0 soft    2 min   0 ->    0.2 events/5 s | margin p1   57 p50   93 | direness 14:100%
+  a+b+c  hard    0 soft    0 min   0 ->    0.0 events/5 s | margin p1   65 p50  102 | direness 14:100%
+  ab+s24 hard    0 soft    1 min   0 ->    0.1 events/5 s | margin p1   57 p50   93 | direness 14:100%
+  ab+s48 hard    0 soft    0 min   0 ->    0.0 events/5 s | margin p1   57 p50   93 | direness 14:100%
+  ab+s56 hard    0 soft    0 min   0 ->    0.0 events/5 s | margin p1   58 p50   93 | direness 14:100%
+=== base-BKIT20U4-lean1: 48.0 s, 62555 renders; asis margin vs recorded: mean |d| 0.05, within 2: 100.0%
+  recorded cull events: 50.7 /5 s
+  asis   hard   67 soft  418 min   0 ->   50.5 events/5 s | margin p1    9 p50   54 | direness 14:100%
+  a      hard   67 soft   59 min   0 ->   13.1 events/5 s | margin p1   25 p50   81 | direness 14:100%
+  a+b    hard   67 soft   59 min   0 ->   13.1 events/5 s | margin p1   25 p50   81 | direness 14:100%
+  a+b+c  hard    0 soft   13 min   0 ->    1.4 events/5 s | margin p1   44 p50   88 | direness 14:100%
+  ab+s24 hard    0 soft   82 min   0 ->    8.5 events/5 s | margin p1   26 p50   81 | direness 14:100%
+  ab+s48 hard    0 soft    0 min   0 ->    0.0 events/5 s | margin p1   43 p50   81 | direness 14:100%
+  ab+s56 hard    0 soft    0 min   0 ->    0.0 events/5 s | margin p1   43 p50   81 | direness 14:100%
+=== base-BKIT20U4-lean2: 52.9 s, 68675 renders; asis margin vs recorded: mean |d| 0.04, within 2: 100.0%
+  recorded cull events: 48.6 /5 s
+  asis   hard   43 soft  476 min   0 ->   49.0 events/5 s | margin p1    9 p50   54 | direness 14:100%
+  a      hard   43 soft   65 min   0 ->   10.2 events/5 s | margin p1   26 p50   81 | direness 14:100%
+  a+b    hard   43 soft   65 min   0 ->   10.2 events/5 s | margin p1   28 p50   81 | direness 14:100%
+  a+b+c  hard    0 soft   18 min   0 ->    1.7 events/5 s | margin p1   45 p50   88 | direness 14:100%
+  ab+s24 hard    0 soft   74 min   0 ->    7.0 events/5 s | margin p1   28 p50   81 | direness 14:100%
+  ab+s48 hard    0 soft    0 min   0 ->    0.0 events/5 s | margin p1   45 p50   81 | direness 14:100%
+  ab+s56 hard    0 soft    0 min   0 ->    0.0 events/5 s | margin p1   45 p50   81 | direness 14:100%
+=== base-BU7-lean1: 49.7 s, 51018 renders; asis margin vs recorded: mean |d| 0.03, within 2: 100.0%
+  recorded cull events: 76.1 /5 s
+  asis   hard  115 soft  647 min   0 ->   76.7 events/5 s | margin p1   21 p50   54 | direness 14:100%
+  a      hard  115 soft   38 min   0 ->   15.4 events/5 s | margin p1   24 p50   65 | direness 14:100%
+  a+b    hard  115 soft   36 min   0 ->   15.2 events/5 s | margin p1   25 p50   66 | direness 14:100%
+  a+b+c  hard    0 soft    0 min   0 ->    0.0 events/5 s | margin p1   48 p50   80 | direness 14:100%
+  ab+s24 hard    0 soft   29 min   0 ->    2.9 events/5 s | margin p1   26 p50   66 | direness 14:100%
+  ab+s48 hard    0 soft    5 min   0 ->    0.5 events/5 s | margin p1   47 p50   66 | direness 14:100%
+  ab+s56 hard    0 soft    0 min   0 ->    0.0 events/5 s | margin p1   47 p50   66 | direness 14:100%
+=== base-BU4V28-lean1: 52.3 s, 57658 renders; asis margin vs recorded: mean |d| 0.03, within 2: 100.0%
+  recorded cull events: 93.4 /5 s
+  asis   hard  325 soft  650 min   0 ->   93.3 events/5 s | margin p1   11 p50   55 | direness 14:100%
+  a      hard  312 soft   21 min   0 ->   31.9 events/5 s | margin p1   19 p50   71 | direness 14:100%
+  a+b    hard  312 soft   20 min   0 ->   31.8 events/5 s | margin p1   19 p50   71 | direness 14:100%
+  a+b+c  hard    0 soft    0 min   0 ->    0.0 events/5 s | margin p1   42 p50   85 | direness 14:100%
+  ab+s24 hard    0 soft    9 min   0 ->    0.9 events/5 s | margin p1   25 p50   71 | direness 14:100%
+  ab+s48 hard    0 soft    4 min   0 ->    0.4 events/5 s | margin p1   42 p50   71 | direness 14:100%
+  ab+s56 hard    0 soft    0 min   0 ->    0.0 events/5 s | margin p1   42 p50   71 | direness 14:100%
