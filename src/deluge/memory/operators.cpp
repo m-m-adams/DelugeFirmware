@@ -1,3 +1,4 @@
+#include "io/debug/alloc_trace.h"
 #include "memory/general_memory_allocator.h"
 #include "util/exceptions.h"
 #include <new>
@@ -5,6 +6,7 @@
 // todo - make this work in unit tests, need to remove hard coded addresses in GMA
 #if !IN_UNIT_TESTS
 void* operator new(std::size_t n) noexcept(false) {
+	DZ_ALLOC_SCOPE(dz_alloc::ALLOC_EXTERNAL, n);
 	// allocate on external RAM
 	void* addr = GeneralMemoryAllocator::get().allocExternal(n);
 	if (addr == nullptr) [[unlikely]] {
@@ -18,6 +20,7 @@ void* operator new(std::size_t n) noexcept(false) {
 }
 
 void operator delete(void* p) {
+	DZ_ALLOC_SCOPE(dz_alloc::DEALLOC, 0);
 	delugeDealloc(p);
 }
 
@@ -26,6 +29,7 @@ void operator delete(void* p) {
 // that does NOT defer - so without this override, std::string's buffer (allocated via our operator new) is freed
 // through the sanitizer and reported as a bad free. Route it to the custom allocator like the unsized form.
 void operator delete(void* p, std::size_t) noexcept {
+	DZ_ALLOC_SCOPE(dz_alloc::DEALLOC, 0);
 	delugeDealloc(p);
 }
 #endif
