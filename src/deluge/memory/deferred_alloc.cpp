@@ -40,6 +40,7 @@ struct Slot {
 	DeferredAlloc* owner;
 	uint32_t size;
 	uint32_t seq;       // FIFO order
+	uint32_t queuedAt;  // audioSampleTimer when queued (for the latency stats)
 	uint32_t notBefore; // audioSampleTimer: don't retry a failed allocation before this
 	uint32_t backoff;   // samples
 	AllocRegion region;
@@ -166,6 +167,7 @@ bool GeneralMemoryAllocator::queueDeferred(DeferredAlloc& handle) {
 		slot.region = handle.region_;
 		slot.seq = nextSeq++;
 		slot.notBefore = AudioEngine::audioSampleTimer;
+		slot.queuedAt = slot.notBefore;
 		slot.backoff = 0;
 		slot.state = SlotState::QUEUED;
 		handle.slot_ = i;
@@ -327,8 +329,11 @@ void GeneralMemoryAllocator::serviceDeferred() {
 		compilerBarrier();
 		owner->state_ = DeferredAlloc::State::READY;
 		owner->slot_ = 0xFF;
+		uint32_t latency = AudioEngine::audioSampleTimer - slot.queuedAt;
 		freeSlot(slot);
 		deferredAllocStats.requestsServed++;
+		deferredAllocStats.sumLatencySamples += latency;
+		deferredAllocStats.maxLatencySamples = std::max(deferredAllocStats.maxLatencySamples, latency);
 	}
 
 	if (deferredMaintenance_ != nullptr) {
