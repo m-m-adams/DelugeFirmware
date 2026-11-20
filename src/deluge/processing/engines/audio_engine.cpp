@@ -276,6 +276,8 @@ constexpr uint32_t kInputMonitoringFadeInSamples = kSampleRate / 20;
 uint32_t i2sTXBufferPos;
 uint32_t i2sRXBufferPos;
 volatile int voices_started_this_render = 0;
+// What those voice starts took, in samples of time (see voiceStarted())
+float voiceStartTimeThisRender = 0;
 bool headphonesPluggedIn;
 bool micPluggedIn;
 bool lineInPluggedIn;
@@ -536,9 +538,9 @@ uint8_t numRoutines = 0;
 void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 	bool culled = false;
-	// Starting voices is a heavy load and we know it's temporary, so be a bit more lenient with the limit if any voice
-	// started in the last render. Not per voice: the voice-start budget may start several in one render
-	auto max_num_samples = numSamplesLimit + (voices_started_this_render > 0 ? 20 : 0);
+	// Starting voices takes time that won't be needed again, so don't cull for the time the last render's voice starts
+	// took - but only for that much (the voices themselves have to be rendered from now on, so they count)
+	auto max_num_samples = numSamplesLimit + static_cast<int32_t>(std::ceil(voiceStartTimeThisRender));
 	static int32_t last_num_samples_over = 0;
 	int32_t num_samples_over_limit = numSamples - max_num_samples;
 
@@ -986,6 +988,7 @@ bool calledFromScheduler = false;
 	numSamples = getRenderSize(numSamples);
 	voicesStartedLastRender = voices_started_this_render;
 	voices_started_this_render = 0;
+	voiceStartTimeThisRender = 0;
 	voiceStartBudgetForRender(txQueued, numSamples);
 
 	uint32_t tickStartTicks = getSystemTicks();
@@ -1488,6 +1491,7 @@ void routine() {
 				// holds every later note for the rest of the export and stems come out silent (issue #5010). Offline,
 				// only that limit applies, not the time budget.
 				voices_started_this_render = 0;
+				voiceStartTimeThisRender = 0;
 				tickSongFinalizeWindows(numSamples);
 				DeferredNoteOns::sendWhatCanStart();
 				sendWindowOutputsNow();
@@ -1927,6 +1931,7 @@ bool wouldRefuseVoiceStart() {
 void voiceStarted(uint32_t ticksTaken) {
 	float taken = ticksToSamples(ticksTaken);
 	voices_started_this_render += 1;
+	voiceStartTimeThisRender += taken;
 	constexpr float kDecay = 15.f / 16.f;
 	voiceStartCost = voiceStartCost * kDecay + taken * (1.f - kDecay);
 }
