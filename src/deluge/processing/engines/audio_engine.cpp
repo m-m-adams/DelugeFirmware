@@ -226,8 +226,10 @@ float songTickReserve(int32_t timeTilNextTick) {
 }
 
 // How much of what's queued for the codec a render (and song tick) shouldn't be predicted to use up, in samples, for
-// other tasks and the occasional slower render. Bigger renders are only done if they fit within the rest
-constexpr int32_t kRenderSafetyMargin = 8;
+// other tasks and the occasional slower render. Bigger renders are only done if they fit within the rest. Renders
+// whose cost jumps (the one right after a song tick that ends a chord, say) can take 8-15 samples longer than
+// predicted
+constexpr int32_t kRenderSafetyMargin = 16;
 
 // 7 can overwhelm SD bandwidth if we schedule the loads badly. It could be improved by starting future loads
 // earlier for now we provide an outlet in culling a single voice if we're under MIN_VOICES and still getting close
