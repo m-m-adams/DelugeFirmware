@@ -82,6 +82,8 @@ public:
 	~Sound() override { std::erase(AudioEngine::sounds, this); }
 
 	Patcher patcher;
+	// For the Voices' initial patching (see NoCablesFinalValues)
+	NoCablesFinalValues voiceNoCablesFinalValues;
 
 	ParamLPF paramLPF{};
 
