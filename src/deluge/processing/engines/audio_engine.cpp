@@ -122,8 +122,9 @@ namespace AudioEngine {
 
 // Culling and direness work from the predicted margin: how much of what's queued for the codec will be left when the
 // next render is done, in samples. (Not the time the audio routine takes: when catching up it renders twice, or renders
-// bigger blocks, which takes longer without the CPU being any more overloaded.) Culling starts when the margin is
-// kCullMargin or less, and a hard cull happens 32 below that. Direness starts rising 30 above it.
+// bigger blocks, which takes longer without the CPU being any more overloaded - and getRenderSize() only renders more
+// than there's space for while the margin stays above kCullMargin.) Culling starts when the margin is kCullMargin or
+// less, and a hard cull happens 32 below that. Direness starts rising 30 above it.
 constexpr int32_t kCullMargin = 48;
 // The scale cullVoices() and the direness work on, which the margin is mapped onto: numSamplesLimit at kCullMargin
 constexpr int32_t numSamplesLimit = 80;
@@ -225,9 +226,11 @@ float songTickReserve(int32_t timeTilNextTick) {
 	return timeTilNextTick <= 0 ? songTickCost.get() : 0.f;
 }
 
-// How much of what's queued for the codec a render (and song tick) shouldn't be predicted to use up, in samples, for
-// other tasks and the occasional slower render. Bigger renders are only done if they fit within the rest
-constexpr int32_t kRenderSafetyMargin = 8;
+// How much of what's queued for the codec a render bigger than the space in the output buffer (and song tick) should
+// still leave, in samples, for other tasks and the occasional slower render. Bigger renders are only done if they fit
+// within the rest. It's above kCullMargin (with some room for rounding and misprediction) so that catching up never
+// takes the margin down to where setDireness() culls - that's for when even a render of just the space doesn't fit
+constexpr int32_t kRenderSafetyMargin = kCullMargin + 8;
 
 // 7 can overwhelm SD bandwidth if we schedule the loads badly. It could be improved by starting future loads
 // earlier for now we provide an outlet in culling a single voice if we're under MIN_VOICES and still getting close
