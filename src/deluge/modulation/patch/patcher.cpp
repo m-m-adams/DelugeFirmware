@@ -274,7 +274,71 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 
 // NOTE: parameter preset values can't be bigger than 536870912, otherwise overflowing will occur
 
-void Patcher::performInitialPatching(Sound& sound, ParamManager& param_manager) {
+// The same conversion performInitialPatching() applies to each class of param after combining its cables
+int32_t Patcher::finalValueFromCableCombination(int32_t p, int32_t cable_combination) const {
+	if (p < config.firstNonVolumeParam) {
+		return getFinalParameterValueVolume(paramNeutralValues[p], cable_combination);
+	}
+	if (p < config.firstHybridParam) {
+		return getFinalParameterValueLinear(paramNeutralValues[p], cable_combination);
+	}
+	if (p < config.firstExpParam) {
+		return getFinalParameterValueHybrid(paramNeutralValues[p], cable_combination);
+	}
+	return getFinalParameterValueExpWithDumbEnvelopeHack(paramNeutralValues[p], cable_combination, p);
+}
+
+// Gives the same paramFinalValues as the uncached version below. A param with no cables gets its no-cables final
+// value, which is a pure function of the param's value (paramNeutralValues and paramRanges are fixed at boot), so
+// it's only recomputed when that value differs from the one it was cached for. A param with cables gets its cable
+// combination converted with the same function as below.
+void Patcher::performInitialPatchingWithCache(Sound& sound, ParamManager& param_manager, NoCablesFinalValues& cache) {
+	bool valid = cache.valid;
+	for (int32_t p = config.firstParam; p < config.endParams; p++) {
+		int32_t i = p - config.firstParam;
+		int32_t value = sound.getSmoothedPatchedParamValue(p, param_manager);
+		if (!valid || cache.paramValue[i] != value) {
+			int32_t cable_combination = (p < config.firstHybridParam)
+			                                ? combineCablesLinear(nullptr, p, sound, param_manager)
+			                                : combineCablesExp(nullptr, p, sound, param_manager);
+			cache.paramValue[i] = value;
+			cache.finalValue[i] = finalValueFromCableCombination(p, cable_combination);
+		}
+		param_final_values_[i] = cache.finalValue[i];
+	}
+	cache.valid = true;
+
+	Destination* destination = param_manager.getPatchCableSet()->destinations[config.globality];
+	if (destination == nullptr) {
+		return;
+	}
+
+	// First, "range" Destinations
+	for (int32_t i = 0; destination->destinationParamDescriptor.data < (uint32_t)0xFFFFFF00; destination++, i++) {
+		int32_t cables_combination = combineCablesLinearForRangeParam(destination, param_manager);
+
+		rangeFinalValues[i] = getFinalParameterValueLinear(536870912, cables_combination);
+	}
+
+	// Now, regular Destinations going directly to a param
+	for (; destination->destinationParamDescriptor.data < (config.firstHybridParam | 0xFFFFFF00); destination++) {
+		int32_t p = destination->destinationParamDescriptor.getJustTheParam();
+		param_final_values_[p - config.firstParam] =
+		    finalValueFromCableCombination(p, combineCablesLinear(destination, p, sound, param_manager));
+	}
+	for (; destination->sources; destination++) {
+		int32_t p = destination->destinationParamDescriptor.getJustTheParam();
+		param_final_values_[p - config.firstParam] =
+		    finalValueFromCableCombination(p, combineCablesExp(destination, p, sound, param_manager));
+	}
+}
+
+void Patcher::performInitialPatching(Sound& sound, ParamManager& param_manager, NoCablesFinalValues* cache) {
+	if (cache != nullptr && config.firstParam == 0 && config.endParams <= cache->paramValue.size()) {
+		performInitialPatchingWithCache(sound, param_manager, *cache);
+		return;
+	}
+
 	// In this function, we are sneaky and write the "cable combination" working value in to paramFinalValues, before
 	// going back over that array with the final step. This saves memory. Didn't seem to have a real effect on speed.
 
