@@ -679,17 +679,45 @@ inline void setDireness(size_t numSamples, int32_t timeTilNextTick) {
 	}
 	int32_t predicted = (int32_t)(songTickReserve(timeTilNextTick) + renderCost.predict(renderSize));
 	int32_t margin = queued - predicted;
+
+	// Direness (cheaper oscillators, interpolation and filters) is for when the voices playing take more time than
+	// there is, so it goes by the smallest render that keeps up - one that fills the space - not the bigger one
+	// getRenderSize() may pick to catch up, whose margin it shrinks towards kRenderSafetyMargin whatever the load. And
+	// not right after a song tick: the margin dips there while the queue catches up with the tick, and cheaper voices
+	// wouldn't help that - they'd just stay cheap for the rest of the step, as direness only falls 1 per 1/8 s
+	int32_t keepUpSize = numSamples;
+	if (timeTilNextTick > 0) {
+		keepUpSize = std::min<int32_t>(keepUpSize, timeTilNextTick);
+	}
+	int32_t keepUpMargin =
+	    queued - (int32_t)(songTickReserve(timeTilNextTick) + renderCost.predict(std::max<int32_t>(keepUpSize, 0)));
+	int32_t direnessLevel = std::max<int32_t>(numSamplesLimit + kCullMargin - keepUpMargin, 0);
+	bool afterTick = rendersSinceSongTick <= kTickRecoveryRenders;
 	numSamples = std::max<int32_t>(numSamplesLimit + kCullMargin - margin, 0);
 
 	// don't smooth this - used for other decisions as well
-	if (numSamples >= direnessThreshold) {
-
-		int32_t newDireness = std::min<int32_t>(numSamples - (direnessThreshold - 1), 14);
-
+	if (direnessLevel >= direnessThreshold && !afterTick) {
+		int32_t newDireness = std::min<int32_t>(direnessLevel - (direnessThreshold - 1), 14);
 		if (newDireness >= cpuDireness) {
 			cpuDireness = newDireness;
 			timeDirenessChanged = audioSampleTimer;
 		}
+	}
+	// otherwise lower it (with some hysteresis to avoid jittering
+	else if (direnessLevel < direnessThreshold - 3) {
+		if ((int32_t)(audioSampleTimer - timeDirenessChanged) >= (kSampleRate >> 3)) { // Only if it's been long enough
+			timeDirenessChanged = audioSampleTimer;
+			cpuDireness--;
+			if (cpuDireness < 0) {
+				cpuDireness = 0;
+			}
+			else {
+				D_PRINTLN("direness:  %d", cpuDireness);
+			}
+		}
+	}
+
+	if (numSamples >= direnessThreshold) {
 		auto numAudio = currentSong ? currentSong->countAudioVoices() : 0;
 		auto numVoice = getNumVoices();
 		if (!bypassCulling) {
@@ -701,20 +729,6 @@ inline void setDireness(size_t numSamples, int32_t timeTilNextTick) {
 			if (num_samples_over_limit >= 0) {
 				D_PRINTLN("numSamples %d, numVoice %d, numAudio %d", numSamples, numVoice, numAudio);
 				logAction("skipped cull");
-			}
-		}
-	}
-	// otherwise lower it (with some hysteresis to avoid jittering
-	else if (numSamples < direnessThreshold - 3) {
-
-		if ((int32_t)(audioSampleTimer - timeDirenessChanged) >= (kSampleRate >> 3)) { // Only if it's been long enough
-			timeDirenessChanged = audioSampleTimer;
-			cpuDireness--;
-			if (cpuDireness < 0) {
-				cpuDireness = 0;
-			}
-			else {
-				D_PRINTLN("direness:  %d", cpuDireness);
 			}
 		}
 	}
