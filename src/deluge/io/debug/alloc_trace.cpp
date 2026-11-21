@@ -1,5 +1,6 @@
 #include "io/debug/alloc_trace.h"
 #include "definitions.h"
+#include "memory/general_memory_allocator.h"
 
 #if DZ_ALLOC_TRACE
 
@@ -44,11 +45,83 @@ struct DzAllocTrace {
 };
 
 PLACE_SDRAM_BSS DzAllocTrace dzAllocTrace;
+
+struct DzMemStats {
+	uint32_t magic; // 0xD2D2E3E3
+	uint32_t snapshots;
+	uint32_t stealableFree;    // bytes in the stealable region's empty-space records at the last snapshot
+	uint32_t stealableFreeMin; // smallest seen
+	uint32_t externalFree;     // same for the external region
+	uint32_t externalFreeMin;
+	uint32_t stealableRecords;     // number of empty-space records (stealable)
+	uint32_t reclaims;             // CacheManager::ReclaimMemory calls (anywhere)
+	uint32_t reclaimsFound;        // ... that returned memory
+	uint32_t reclaimsInAudio;      // ... made inside AudioEngine::routine
+	uint32_t reclaimCyclesInAudio; // PMU cycles spent in those
+	uint32_t reclaimMaxCyclesInAudio;
+	uint32_t reclaimCycles; // PMU cycles in all reclaims
+	uint32_t reclaimMaxCycles;
+	uint32_t reclaimBytes;      // sum of sizes needed
+	uint32_t lateClusters;      // SampleLowLevelReader found the next cluster not loaded ("late")
+	uint32_t lastSnapshotTimer; // audioSampleTimer of the last snapshot
+};
+PLACE_SDRAM_BSS DzMemStats dzMemStats;
 }
 
 namespace dz_alloc {
 
 static uint8_t depth = 0;
+
+void reclaimDone(uint32_t c, uint32_t sizeNeeded, bool found) {
+	DzMemStats& m = dzMemStats;
+	m.magic = 0xD2D2E3E3;
+	m.reclaims++;
+	m.reclaimsFound += found;
+	m.reclaimCycles += c;
+	m.reclaimBytes += sizeNeeded;
+	if (c > m.reclaimMaxCycles) {
+		m.reclaimMaxCycles = c;
+	}
+	if (dzInAudioRoutine) {
+		m.reclaimsInAudio++;
+		m.reclaimCyclesInAudio += c;
+		if (c > m.reclaimMaxCyclesInAudio) {
+			m.reclaimMaxCyclesInAudio = c;
+		}
+	}
+}
+
+void lateCluster() {
+	dzMemStats.lateClusters++;
+}
+
+static uint32_t sumFree(MemoryRegion& r, uint32_t* records) {
+	uint32_t total = 0;
+	int32_t n = r.emptySpaces.getNumElements();
+	for (int32_t i = 0; i < n; i++) {
+		total += ((EmptySpaceRecord*)r.emptySpaces.getElementAddress(i))->length;
+	}
+	if (records) {
+		*records = n;
+	}
+	return total;
+}
+
+void snapshotMemory() {
+	DzMemStats& m = dzMemStats;
+	GeneralMemoryAllocator& gma = GeneralMemoryAllocator::get();
+	m.magic = 0xD2D2E3E3;
+	m.stealableFree = sumFree(gma.regions[MEMORY_REGION_STEALABLE], &m.stealableRecords);
+	m.externalFree = sumFree(gma.regions[MEMORY_REGION_EXTERNAL], nullptr);
+	if (m.snapshots == 0 || m.stealableFree < m.stealableFreeMin) {
+		m.stealableFreeMin = m.stealableFree;
+	}
+	if (m.snapshots == 0 || m.externalFree < m.externalFreeMin) {
+		m.externalFreeMin = m.externalFree;
+	}
+	m.snapshots++;
+	m.lastSnapshotTimer = AudioEngine::audioSampleTimer;
+}
 
 [[gnu::always_inline]] static inline uint32_t cycles() {
 	uint32_t c;

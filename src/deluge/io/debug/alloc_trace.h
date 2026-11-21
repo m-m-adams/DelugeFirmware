@@ -47,6 +47,16 @@ struct Scope {
 	uint32_t result = 0;
 };
 
+/// Memory/cache pressure counters (dzMemStats): stealable/external free bytes, cache reclaims (steals), late clusters
+void reclaimDone(uint32_t cycles, uint32_t sizeNeeded, bool found);
+void lateCluster();
+void snapshotMemory(); ///< call now and then from the audio routine: sums the regions' empty spaces
+[[gnu::always_inline]] inline uint32_t pmuCycles() {
+	uint32_t c;
+	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(c));
+	return c;
+}
+
 #define DZ_ALLOC_SCOPE(kind, size) dz_alloc::Scope dzAllocScope_(kind, size, __builtin_return_address(0))
 #define DZ_ALLOC_RESULT(p) dzAllocScope_.setResult(p)
 #else

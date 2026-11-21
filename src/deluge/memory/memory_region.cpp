@@ -17,6 +17,7 @@
 
 #include "memory/memory_region.h"
 #include "hid/display/display.h"
+#include "io/debug/alloc_trace.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/stealable.h"
@@ -380,7 +381,9 @@ justUpdateRecord:
 	else {
 noEmptySpace:
 		if (cache_manager_) {
+			uint32_t dzC0 = dz_alloc::pmuCycles();
 			allocatedAddress = cache_manager_->ReclaimMemory(*this, requiredSize, thingNotToStealFrom, &allocatedSize);
+			dz_alloc::reclaimDone(dz_alloc::pmuCycles() - dzC0, requiredSize, allocatedAddress != 0);
 		}
 		if (allocatedAddress == 0u) {
 #if ALPHA_OR_BETA_VERSION

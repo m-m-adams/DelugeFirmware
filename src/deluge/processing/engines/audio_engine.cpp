@@ -1389,6 +1389,12 @@ void routine() {
 
 	audioRoutineLocked = true;
 	dz_alloc::dzInAudioRoutine = 1;
+	{
+		static uint32_t dzSnapshotCount = 0;
+		if ((++dzSnapshotCount & 1023) == 0) {
+			dz_alloc::snapshotMemory();
+		}
+	}
 
 	numRoutines = 0;
 	if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
