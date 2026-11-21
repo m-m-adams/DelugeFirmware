@@ -229,8 +229,9 @@ float songTickReserve(int32_t timeTilNextTick) {
 // How much of what's queued for the codec a render (and song tick) shouldn't be predicted to use up, in samples, for
 // other tasks and the occasional slower render. Bigger renders are only done if they fit within the rest. Renders
 // whose cost jumps (the one right after a song tick that ends a chord, say) can take 8-15 samples longer than
-// predicted
-constexpr int32_t kRenderSafetyMargin = 16;
+// predicted. And it's above where cullVoices() hard culls (32 below kCullMargin), with room for rounding the render up
+// to a multiple of 4 samples, so that catching up can't cause a hard cull by itself
+constexpr int32_t kRenderSafetyMargin = kCullMargin - 32 + 4;
 
 // For this many renders after one that starts with a song tick, the margin is expected to dip: the tick took time, and
 // the notes it started and stopped are being rendered while the queue catches up. Outside that, a margin under the cull
