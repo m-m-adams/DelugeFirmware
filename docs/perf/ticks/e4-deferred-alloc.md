@@ -332,3 +332,106 @@ python3 tools/e4_compare.py runs/e4-base-E4FX-lean{1,2,3} runs/e4-E4FX-lean{1,2,
 ```
 Queue scripts: `runs/e4-queue{1,2,3,4}.sh` (logs alongside). The run of queue 3 + a probe build were interrupted by a
 container restart; queue 3 had completed, the build was redone.
+
+## 8. Follow-up: sample-heavy song with a full cache, E4RATE re-runs (2026-11-21)
+
+### 8.1 The case that should matter: a full sample-cluster cache
+
+Setup:
+- WAVs: 12 x 3 min stereo 16-bit 44.1 kHz (quiet sines, 31.75 MB each, 381 MB total) from
+  `/home/user/perfwork/song/gen_long_wavs.py`. Card `/home/user/perfwork/sd_e4s.img` (content `sdcard_e4s/`).
+- Song `TICKLOAD_E4SAMP.XML` (key `E4SAMP`) from `song/gen_tickload_e4s.py`, which wraps `gen_tickload_e4.py`:
+  ```
+  gen_tickload_e4s.py -o .../TICKLOAD_E4SAMP.XML --rows 12 --chord 1 --fx --e4 --song-modfx grainFX --e4-kit 4 \
+      --kit-modfx grainFX --delay-auto-clips 5 --delay-rate-auto-clips 5 --slow-delays
+  ```
+  - A kit of 12 one-shot sample rows. Each row is one note lasting the whole 96-bar clip, staggered by a 16th,
+    with voice priority high. Together they stream about 2.1 MB/s from the card.
+  - 5 synth clips (1 note each) with mod FX, a reverb send and **delay feedback toggling every half bar**. The
+    delay rate is held slow (-0x70000000), so every re-allocation is a **499 KB** delay buffer.
+  - A 4-row synth kit whose kit-level grain is toggled by feedback automation, plus song-level grain.
+- Firmware: base = main + probe + allocation trace + the new `dzMemStats` counters (commit `f3d5d83` on
+  `perf/e4-alloc-trace`, pushed as `perf/ticks/claude-e4-alloc-trace`). E4 = E4 + probe + the same instrumentation
+  (`perf/e4-deferred-alloc-trace`, pushed as `perf/ticks/claude-e4-deferred-alloc-trace`).
+  - `dzMemStats` sums the stealable and external empty-space records every 1024 audio routine calls.
+  - It counts `CacheManager::ReclaimMemory` calls (steals) with PMU cycles, separately for those inside the
+    audio routine.
+  - It counts "late" clusters in `SampleLowLevelReader`.
+- Runs: 160 lean slices (~58 s of play), 3 each, `runs/e4-trace-{base,E4}-SAMP{1,2,3}`. Analysis tools:
+  `tools/e4_samp.py`, `tools/memstats.py`.
+
+**Getting there.** The first versions of the song never filled the cache: the sample voices were all culled in
+the first 2 s. Bisecting the song options showed the **delay-rate step automation** causes hard cull bursts that
+kill every voice at the rate change, high-priority samples included. Holding the rate fixed and toggling only
+feedback fixed it.
+
+**The cache is really full.** The stealable region drops from 57 MB free to 0.1 MB at ~30 s and stays there
+(`memstats.py`). From then on there are ~1700-1800 reclaims (steals) per run.
+
+| (cache full, t >= 32 s) | base 1 / 2 / 3 | E4 1 / 2 / 3 |
+|---|---|---|
+| load % | 87.4 / 87.5 / 87.3 | 87.3 / 87.8 / 87.7 |
+| p99 render (us) | 1215 / 1195 / 1205 | 1216 / 1236 / 1226 |
+| max render (us) | 1768 / 1727 / 1768 | 1778 / 1789 / 1769 |
+| culls / 5 s | 30.0 / 31.8 / 31.5 | 31.5 / 32.1 / 33.3 |
+| least queued (samples) / renders with < 8 queued | 78 / 75 / 75, 0 | 77 / 76 / 77, 0 |
+| late clusters | 0 / 0 / 0 | 0 / 0 / 0 |
+| reclaims (all inside the audio routine) | 1731 / 1702 / 1773 | 1812 / 1808 / 1800 |
+| reclaim cost avg / max (us) | 1.1 / 20, 1.0 / 20, 1.0 / 20 | 0.9 / 10, 0.8 / 10, 0.9 / 10 |
+| >100 KB allocs in the render: count, avg / max (us) | 70, 8.0 / 30; 65, 8.0 / 30; 70, 8.3 / 30 | 0 (deferred: ~175 requests, latency mean 73-84, max 129-144 samples) |
+| cluster allocs in the render (`Cluster::create`, 32,880 B) avg / max (us) | 1.7-1.8 / 10 | 1.8 / 10 (not converted) |
+| renders containing a >100 KB alloc: max (us) | 1316 / 1366 / 1376 (well below the worst) | - |
+
+Findings:
+- **With a full cache, an allocation in the render is still cheap.** A 499 KB delay buffer costs on average 8 us,
+  at most 30 us (1.3 samples' worth). A reclaim costs about 1 us on average, at most 20 us. Stealing takes clusters
+  that nobody needs any more off the reclamation queue, which is quick. The renders that contain a big allocation
+  are 400 us below the run's worst render.
+- **E4 removes the big allocations from the render, but nothing measurable changes:** worst render, p99, culls,
+  least queued, late clusters (0) and past-empty renders (0) all stay the same. E4 is marginally worse on culls
+  (+1-2 per 5 s) and max (+20 us), which is within noise.
+- **The render allocation that matters with samples isn't covered by E4.** `Cluster::create` runs from the sample
+  read-ahead in the render, about 30 per second, and each one steals once the cache is full. E4 leaves these
+  synchronous: `syncAllocsInAudio` reaches ~3850 in the E4 runs. They cost 1.7 us average, 10 us max, so
+  deferring them wouldn't change anything either.
+- **The grain-buffer re-steal case didn't occur.** The kit and song grain buffers (512 KB, stealable while grain
+  is off) were never chosen for stealing while off, so grain never had to re-allocate mid-song. It's only reachable
+  through a neighbour grab of an idle grain buffer.
+
+### 8.2 E4RATE: 5 runs each
+
+`runs/e4-{base-,}E4RATE-lean{1..5}`, steady state (2-20 s):
+
+| | culls / 5 s | max render (us) | renders > 2.5 ms | start (first 2 s) culls / max (us) |
+|---|---|---|---|---|
+| base | 265.0, 268.6, 287.8, 276.1, 280.0 (mean 275.5) | 2853, 2842, 2844, 2773, 2832 (mean 2829) | 15, 15, 9, 7, 10 | 66-77 / 1679-1778 |
+| E4 | 278.1, 272.2, 272.5, 271.1, 274.7 (mean 273.7) | 2943, 2943, 2973, 2974, 2954 (mean 2957) | 12, 10, 10, 7, 13 | 78-82 / 1759-1929 |
+
+- **The culls regression is dismissed.** Over 5 runs the means are 275.5 vs 273.7 per 5 s. Summed over all
+  quarter-bars and all runs, the culls in the 1.75 s after each rate change are 4175 (base) vs 4179 (E4).
+- **The +130 us on the single worst render is real.** All 5 E4 runs show it. But the average render cost per
+  sample, binned by position after the rate change (250-sample bins over the quarter bar), matches base to within
+  about ±2%, with mixed signs.
+- **Probable cause.** Base allocates the five delays' new secondary buffers in the render where the rate changes.
+  With E4 they arrive 1-4 renders later, and all five in the same service run, so their double-buffer writing and
+  swap phase moves by a few renders. It then overlaps more with the next note's voice starts. That's a shift of
+  the work, not more work. Start culls are also slightly higher (78-82 vs 66-77). Fixing it would mean allocating
+  delay buffers synchronously when the rate changes, i.e. undoing E4 for delays. Not worth it.
+
+### 8.3 Verdict
+
+E4 isn't worth upstreaming, as a performance fix or as a robustness fix:
+- **No gain when allocation is at its worst.** Even with a full sample cache, render-time allocations cost
+  microseconds (max 30 us for a 499 KB buffer) and are nowhere near the worst renders. Removing them changes no
+  measured metric.
+- **Real cost.** ~600 lines of allocator code, a new concurrency protocol (with use-after-free risk in the
+  stealable path), and effects that start a few ms late.
+- **Small downside in one song.** E4RATE's worst render is consistently ~130 us worse.
+
+**PR: none opened.** The rule was to open one only if the sample-heavy test showed a real improvement in worst
+render, culls, late clusters or underruns, and it didn't. The E4 commits do rebase cleanly onto origin/main
+3755636a2 (checked with a cherry-pick, not built).
+
+If anything is kept, the debug counter alone (`syncAllocsInAudio` / last caller, under `ALPHA_OR_BETA_VERSION`)
+is cheap and useful for spotting future render-time allocations. The arpeggiator arrays' `extend()` probe
+(`ResizeableArray`, commit 4) is a harmless one-liner, but there's no measured benefit.
