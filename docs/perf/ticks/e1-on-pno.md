@@ -3,6 +3,8 @@
 E1 resumed on top of PR #18: the voice-start time budget, squash-merged to the fork's main as 3755636a2. The previous
 E1 notes (`e1-tick-aware-cull.md`) cover main 680b93c.
 
+Review PR: https://github.com/m-m-adams/DelugeFirmware/pull/19 (into perf/performance-review).
+
 ## TL;DR
 
 - Branches:
