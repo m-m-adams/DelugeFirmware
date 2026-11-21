@@ -233,6 +233,13 @@ float songTickReserve(int32_t timeTilNextTick) {
 // to a multiple of 4 samples, so that catching up can't cause a hard cull by itself
 constexpr int32_t kRenderSafetyMargin = kCullMargin - 32 + 4;
 
+// For this many renders after one that starts with a song tick, the margin is expected to dip: the tick took time, and
+// the notes it started and stopped are being rendered while the queue catches up. Outside that, a margin under the cull
+// limit means the voices playing don't fit
+constexpr uint32_t kTickRecoveryRenders = 3;
+// Renders since the last one that started with a song tick
+uint32_t rendersSinceSongTick = kTickRecoveryRenders + 1;
+
 // 7 can overwhelm SD bandwidth if we schedule the loads badly. It could be improved by starting future loads
 // earlier for now we provide an outlet in culling a single voice if we're under MIN_VOICES and still getting close
 // to the limit
@@ -589,10 +596,12 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 			culled = true;
 		}
 
-		// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples
-		// is increasing
+		// Or if it's just a little bit dire, do a soft cull with fade-out. Right after a song tick, only if numSamples
+		// is increasing - the margin dips there while the queue catches up with the tick - but otherwise for sure: the
+		// load then is the voices playing, and they don't fit
 		else if (num_samples_over_limit >= 0) {
-			if (last_num_samples_over > 0 && num_samples_over_limit >= last_num_samples_over) {
+			bool afterTick = rendersSinceSongTick <= kTickRecoveryRenders;
+			if (!afterTick || (last_num_samples_over > 0 && num_samples_over_limit >= last_num_samples_over)) {
 				forceReleaseOneVoice(numSamples);
 				if (numRoutines > 0) {
 					culled = true;
@@ -1001,6 +1010,7 @@ bool calledFromScheduler = false;
 
 	// Whether the song ticks at the start of this window - and if not, where the window will be cut short for one
 	int32_t const timeTilNextTick = getTimeTilNextSongTick();
+	rendersSinceSongTick = (timeTilNextTick <= 0) ? 0 : std::min(rendersSinceSongTick + 1, kTickRecoveryRenders + 1);
 	setDireness(numSamples, timeTilNextTick);
 
 	// What's left of the TX buffer is still waiting for the codec, in front of this render
