@@ -320,3 +320,59 @@ In BU6 this also reorders two notes of one Sound's chord now and then: the basel
 of one Sound start in descending note order within a render in main; 0 in E2), so it's the queue's timing-dependent
 order, not an E2 logic change. Everything that doesn't depend on the voice budget (arp output, note-offs, kit rows,
 mono/legato/choke behaviour) is identical event for event.
+
+## Measurements on main (lean, Deluge speed, sd-baseline.img, 200 slices, 25 s skip; `tools/tb_report.py`, `cullattr.py`)
+
+Before = E3's `tbf-*` runs (09d4d3a + probe e81e0ec; identical to main for these paths). A = main + arp + kit-row
+(+ probe, `elf/e2/p2m-probe.elf`, runs `runs/e2-p2m-*`). A+B = perf/e2-on-pno: + voice-start cache
+(`elf/e2/p4m-probe.elf`, runs `runs/e2-p4m-*`). All without #19 (E1).
+
+| song | build | step tick samples mean/max | culls/5 s (hard) | voices | least queued | least time left | past empty / <4 | note delay mean | chord smear mean/max |
+|---|---|---|---|---|---|---|---|---|---|
+| KIT20 | before | 17.9/18.6 | 0 | 20.0 | 89 | 46.4 | 0/0 | 2.6 ms | 4.7/5.3 |
+| | A | 10.8/11.5 | 0 | 20.0 | 96 | 55.7 | 0/0 | 2.1 | 4.4/4.9 |
+| | A+B | **9.9/10.2** | 0 | 20.0 | 97 | 58.0 | 0/0 | 2.1 | 4.2/4.7 |
+| BKIT20U4 | before (3) | 16.3/19.0 | 21.8/18.7/18.4 (0) | 19.3 | 81-82 | 14.3-16.5 | 0/0 | 4.8 | 7.1/8.3 |
+| | A (2) | 9.3/11.5 | **0/0** | 19.7 | 87 | 27.4 | 0/0 | 4.5 | 6.8/8.0 |
+| | A+B (3) | **8.6/10.6** | **0/0/0** | 19.6 | 88 | 27.8 | 0/0 | 4.5 | 6.7/7.8 |
+| BU6 | before (3) | 8.4/11.5 | 10.4/10.7/9.8 (0.3-0.5) | 19.4 | 81 | 15.9 | 0/0 | 5.1 | 7.2/8.3 |
+| | A (2) | 7.7/10.6 | 6.9/7.6 (0-0.1) | 19.4 | 81 | 16.4-16.9 | 0/0 | 5.0 | 7.2/8.3 |
+| | A+B (3) | **7.8/9.7** | 7.2/6.4/6.9 (0) | 19.5 | 81 | 17.3 | 0/0 | 4.8 | 6.7/8.3 |
+| BU8 | before (2) | 8.3/11.0 | 148.6/147.2 (5.2) | 16.5 | 73-80 | 6.2-9.0 | 0/0 | 5.3 | 7.9/9.5 |
+| | A+B (2) | 7.5/9.7 | 148.6/147.7 (5.8-6.1) | 16.5 | 75 | 9.9-10.9 | 0/0 | 5.3 | 7.9/9.3 |
+
+Load unchanged (69/87/88/89%). Step tick here includes the voices the time budget lets start in the tick.
+
+Full mode (exact instructions per call, `runs/e2-tbf-*-full` = before, `runs/e2-p4m-*-full` = A+B):
+
+| scope | BU6 before → A+B | BKIT20U4 before → A+B |
+|---|---|---|
+| PlaybackHandler::actionSwungTick (= tick per step, 1 tick/step) | 52.1k → 46.9k | **90.5k → 52.3k** |
+| InstrumentClip::processCurrentPos | 9.9k → 8.9k | 86.7k → 48.5k |
+| NoteRow::processCurrentPos (incl. note-offs) | 1,771 → 1,594 | 3,612 → 1,760 |
+| Sound::noteOnPostArpeggiator (voice start) | 5,461 → 3,968 | 5,459 → 3,925 |
+| Voice::noteOn | 4,628 → 3,134 | 4,440 → 2,948 |
+
+## Memory cost of the voice-start cache (f92479be2)
+
+sizeof(SoundDrum) 2,024 → 2,392 bytes (+368; `sampleForPreviewMemory` symbol size in the ELFs). Sounds come from
+`GeneralMemoryAllocator::allocMaxSpeed()`, which tries the internal SRAM heap first (`__heap_start` 0x201736c4 ..
+`program_stack_start` 0x202f8000, ~1.52 MB) and falls back to SDRAM. 128-row kit: +47 KB; 20-row kit: +7 KB.
+Saving: ~1.5k instructions (~0.24 samples) per voice start, i.e. ~30% of a start, wherever starts run (tick and
+queue); BU6 chord smear 7.2 -> 6.7 ms. Recommendation: worth it for the smear/tick, but it's the reviewer's call on
+internal RAM; a variant could allocate the table lazily in SDRAM (one allocation on a Sound's first note, which E4
+would want out of the audio routine), or key only the params without cables.
+
+## PRs (into perf/performance-review, base main 3755636a2)
+
+- #20 https://github.com/m-m-adams/DelugeFirmware/pull/20 — head `perf/ticks/claude-e2-arp-kit-review`
+  (410775d2f arp lazy notesByPattern, 128a3bdaa kit note row from the model stack).
+- #21 https://github.com/m-m-adams/DelugeFirmware/pull/21 — head `perf/ticks/claude-e2-voice-cache-review`
+  (617179e6a voice-start cache), independent of #20 (applies and builds on main alone; measured stacked on #20).
+
+Both review branches build plain (no probe) on main. Not tested: hardware, MIDI input, MIDI/CV arps in PATTERN mode,
+deleting kit rows while playing, memory pressure with huge kits.
+
+Observation for E3/#18 (not E2): in main, a Sound's chord notes occasionally start in descending note order within one
+render (2 of 1128 starts of one BU6 Sound) — the queue's per-Sound order isn't strictly tick order. Same start sample,
+so inaudible.
