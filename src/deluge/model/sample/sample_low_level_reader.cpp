@@ -21,6 +21,7 @@
 #include "dsp/stereo_sample.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "hid/display/display.h"
+#include "io/debug/alloc_trace.h"
 #include "io/debug/log.h"
 #include "model/sample/sample.h"
 #include "model/voice/voice.h"
@@ -351,6 +352,7 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 	}
 
 	if (!clusters[0]->loaded) {
+		dz_alloc::lateCluster();
 		D_PRINTLN("late  %s  p  %d", clusters[0]->sample->filePath.get(), clusters[0]->clusterIndex);
 
 		return false;

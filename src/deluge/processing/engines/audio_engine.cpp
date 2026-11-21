@@ -1406,6 +1406,12 @@ void routine() {
 	// From here until we're done, GMA allocations through DeferredAlloc are deferred to a low-priority task
 	GeneralMemoryAllocator::get().audioRoutineDepth++;
 	dz_alloc::dzInAudioRoutine = 1;
+	{
+		static uint32_t dzSnapshotCount = 0;
+		if ((++dzSnapshotCount & 1023) == 0) {
+			dz_alloc::snapshotMemory();
+		}
+	}
 
 	numRoutines = 0;
 	if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
