@@ -231,6 +231,7 @@ public:
 	void checkIfAllEditPadPressesEnded(bool mayRenderSidebar = true);
 	void endEditPadPress(uint8_t i);
 	void endAllEditPadPresses();
+	void releaseAllEditPadPresses();
 	void copyAutomation(int32_t whichModEncoder, int32_t navSysId = NAVIGATION_CLIP);
 	void pasteAutomation(int32_t whichModEncoder, int32_t navSysId = NAVIGATION_CLIP);
 	// made these public so they can be accessed by the automation clip view

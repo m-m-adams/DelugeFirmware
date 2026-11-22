@@ -890,6 +890,14 @@ ActionResult InstrumentClipView::handleScaleButtonAction(bool on, bool inCardRou
 		return ActionResult::DEALT_WITH;
 	}
 
+	// Held grid pads are tied to their notes by screen row, and changing the scale moves notes to other rows. So let
+	// go of them first, as if the pads had been released - otherwise the scale button taking over the UI mode from
+	// UI_MODE_NOTES_PRESSED means their releases are never seen: the notes stay stuck on, and the next vertical scroll
+	// looks for a NoteRow at a row that no longer has one (E379)
+	if (on && numEditPadPresses > 0) {
+		releaseAllEditPadPresses();
+	}
+
 	actionLogger.deleteAllLogs(); // Can't undo past this!
 
 	bool inScaleMode = getCurrentInstrumentClip()->inScaleMode;
@@ -2766,6 +2774,25 @@ void InstrumentClipView::endAllEditPadPresses() {
 			if (!playbackHandler.isEitherClockActive()) {
 				reassessAuditionStatus(editPadPresses[i].yDisplay);
 			}
+		}
+	}
+}
+
+// Like the pads all being let go - unlike endAllEditPadPresses(), auditioning is reassessed even while the clock runs,
+// so no note is left sounding
+void InstrumentClipView::releaseAllEditPadPresses() {
+	uint32_t rowsToReassess = 0;
+	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+		if (editPadPresses[i].isActive) {
+			rowsToReassess |= 1 << editPadPresses[i].yDisplay;
+			endEditPadPress(i);
+		}
+	}
+	actionLogger.closeAction(ActionType::NOTE_NUDGE);
+	checkIfAllEditPadPressesEnded();
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+		if (rowsToReassess & (1 << yDisplay)) {
+			reassessAuditionStatus(yDisplay);
 		}
 	}
 }
@@ -4666,7 +4693,14 @@ void InstrumentClipView::scrollVertical_grabNotesPressed(ModelStackWithTimelineC
 					int32_t pos = editPadPresses[i].intendedPos;
 					ModelStackWithNoteRow* modelStackWithNoteRow =
 					    clip->getNoteRowOnScreen(editPadPresses[i].yDisplay, modelStack);
-					NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRow();
+					NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+					// If the row has gone from under the press, there's no note to carry along - let go of it
+					if (thisNoteRow == nullptr) {
+						endEditPadPress(i);
+						checkIfAllEditPadPressesEnded(false);
+						reassessAuditionStatus(editPadPresses[i].yDisplay);
+						continue;
+					}
 					thisNoteRow->deleteNoteByPos(modelStackWithNoteRow, pos, action);
 
 					ParamCollectionSummary* mpeParamsSummary = thisNoteRow->paramManager.getExpressionParamSetSummary();
