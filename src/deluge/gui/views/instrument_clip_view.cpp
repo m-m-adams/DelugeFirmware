@@ -2778,8 +2778,8 @@ void InstrumentClipView::endAllEditPadPresses() {
 	}
 }
 
-// Like the pads all being let go - unlike endAllEditPadPresses(), auditioning is reassessed even while the clock runs,
-// so no note is left sounding
+// Exactly what letting go of each pad does (see editPadAction()): unlike endAllEditPadPresses(), this also closes the
+// note nudge action, and reassesses auditioning whether or not the clock is running
 void InstrumentClipView::releaseAllEditPadPresses() {
 	uint32_t rowsToReassess = 0;
 	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
