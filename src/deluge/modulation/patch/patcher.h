@@ -18,6 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "modulation/params/param.h"
+#include <array>
 #include <cstdint>
 #include <span>
 
@@ -35,6 +37,15 @@ enum Globality {
 	GLOBALITY_GLOBAL = 1,
 };
 
+/// The final value each local param gets from its own value alone, i.e. with no cable patched to it. That's a pure
+/// function of the param's (smoothed) value, the same for every voice of a Sound, so Voice::noteOn() keeps it per
+/// Sound, keyed on that value, instead of working it out again for every voice it starts.
+struct NoCablesFinalValues {
+	std::array<int32_t, deluge::modulation::params::LOCAL_LAST> paramValue;
+	std::array<int32_t, deluge::modulation::params::LOCAL_LAST> finalValue;
+	bool valid = false;
+};
+
 class Patcher {
 public:
 	struct Config {
@@ -48,11 +59,14 @@ public:
 
 	Patcher(const Config& config, std::span<int32_t> source_values, std::span<int32_t> param_final_values)
 	    : config(config), source_values_(source_values), param_final_values_(param_final_values) {};
-	void performInitialPatching(Sound& sound, ParamManager& param_manager);
+	/// cache: only for the local params (a Voice's Patcher), and one per Sound. nullptr computes everything.
+	void performInitialPatching(Sound& sound, ParamManager& param_manager, NoCablesFinalValues* cache = nullptr);
 	void performPatching(uint32_t sources_changed, Sound& sound, ParamManagerForTimeline& param_manager);
 	void recalculateFinalValueForParamWithNoCables(int32_t param, Sound& sound, ParamManagerForTimeline& param_manager);
 
 private:
+	void performInitialPatchingWithCache(Sound& sound, ParamManager& param_manager, NoCablesFinalValues& cache);
+	int32_t finalValueFromCableCombination(int32_t param, int32_t cable_combination) const;
 	int32_t combineCablesLinearForRangeParam(Destination const* destination, ParamManager& param_manager);
 	int32_t combineCablesLinear(Destination const* destination, uint32_t param, Sound& sound,
 	                            ParamManager& param_manager);
