@@ -593,6 +593,9 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_ENV_LEVEL, "LEVL"},
         {STRING_FOR_ENV_FOLLOW_Z, "Z"},
         {STRING_FOR_ENV_FOLLOW_Y, "Y"},
+        {STRING_FOR_UNFOLD, "UNFD"},
+        {STRING_FOR_NO_NOTES_TO_FOLD, "NONE"},
+        {STRING_FOR_LEARN_USER_SCALE, "LEARN"},
     },
     &built_in::english,
 };

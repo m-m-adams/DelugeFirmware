@@ -140,6 +140,7 @@ public:
 	bool muted;
 	bool mutedBeforeStemExport; // Used by stem export to restore previous state
 	bool exportStem;            // Used by stem export to flag if this note row should be exported
+	bool inFold{false};         // Whether this row is shown while its clip is folded. See ClipFold.
 
 	int32_t loopLengthIfIndependent; // 0 means obeying parent
 	int32_t lastProcessedPosIfIndependent;

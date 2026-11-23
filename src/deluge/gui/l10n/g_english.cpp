@@ -1055,6 +1055,10 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_ENV_FOLLOW_Z_SHORT, "Z"},
         {STRING_FOR_ENV_FOLLOW_Y, "Mod wheel (Y)"},
         {STRING_FOR_ENV_FOLLOW_Y_SHORT, "Y"},
+        {STRING_FOR_FOLD, "Fold"},
+        {STRING_FOR_UNFOLD, "Unfold"},
+        {STRING_FOR_NO_NOTES_TO_FOLD, "No notes to fold"},
+        {STRING_FOR_LEARN_USER_SCALE, "Learn user scale"},
     },
 };
 } // namespace deluge::l10n::built_in

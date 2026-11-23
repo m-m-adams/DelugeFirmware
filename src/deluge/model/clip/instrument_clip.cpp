@@ -985,7 +985,7 @@ ModelStackWithNoteRow* InstrumentClip::getNoteRowOnScreen(int32_t yDisplay, Mode
 NoteRow* InstrumentClip::getNoteRowOnScreen(int32_t yDisplay, Song* song, int32_t* getIndex) {
 	// Kit
 	if (output->type == OutputType::KIT) {
-		int32_t i = yDisplay + yScroll;
+		int32_t i = getYNoteFromYDisplay(yDisplay, song);
 		if (i < 0 || i >= noteRows.getNumElements()) {
 			return nullptr;
 		}
@@ -1245,6 +1245,7 @@ bool InstrumentClip::replaceMusicalMode(const ScaleChange& changes, ModelStackWi
 	int yDegree = yScroll - (yOctave * oldSize);
 	// Take scale size changes into account and adjust yScroll to keep same octave visible
 	yScroll = yOctave * newSize + yDegree;
+	fold.refold(*this);
 	return rowsRestructured;
 }
 
@@ -1467,6 +1468,7 @@ bool InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 	}
 
 	yScroll += change;
+	fold.refold(*this); // Rows can have merged
 	return true;
 }
 
@@ -1639,6 +1641,8 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
                                        InstrumentRemoval instrumentRemovalInstruction,
                                        InstrumentClip* favourClipForCloningParamManager, bool keepNoteRowsWithMIDIInput,
                                        bool giveMidiAssignmentsToNewInstrument) {
+	fold.unfold(*this, modelStack->song); // The rows are about to change completely
+
 	// If switching to Kit
 	if (newInstrument->type == OutputType::KIT) {
 
@@ -3674,7 +3678,18 @@ bool InstrumentClip::containsAnyNotes() {
 }
 
 int32_t InstrumentClip::getYNoteFromYDisplay(int32_t yDisplay, Song* song) {
+	if (fold.isActive()) {
+		return fold.getYNote(*this, song, yDisplay);
+	}
 	return getYNoteFromYVisual(yDisplay + yScroll, song);
+}
+
+int32_t InstrumentClip::getYDisplayFromYNote(int32_t yNote, Song* song) {
+	if (fold.isActive()) {
+		return fold.getYDisplay(*this, song, yNote);
+	}
+	int32_t yVisual = (output->type == OutputType::KIT) ? yNote : getYVisualFromYNote(yNote, song);
+	return yVisual - yScroll;
 }
 
 // Called when the user presses one of the instrument-type buttons (synth/kit/MIDI/CV). This function takes care of
@@ -4625,8 +4640,8 @@ void InstrumentClip::recordNoteOff(ModelStackWithNoteRow* modelStack, int32_t ve
 // Kit?
 void InstrumentClip::yDisplayNoLongerAuditioning(int32_t yDisplay, Song* song) {
 	if (output->type == OutputType::KIT) {
-		int32_t noteRowIndex = yDisplay + yScroll;
-		if (noteRowIndex >= 0 && noteRowIndex <= noteRows.getNumElements()) {
+		int32_t noteRowIndex = getYNoteFromYDisplay(yDisplay, song);
+		if (noteRowIndex >= 0 && noteRowIndex < noteRows.getNumElements()) {
 			NoteRow* noteRow = noteRows.getElement(noteRowIndex);
 			if (noteRow->drum) {
 				noteRow->drum->auditioned = false;

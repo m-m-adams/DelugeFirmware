@@ -58,20 +58,38 @@ bool SelectScale::setupAndCheckAvailability() {
 	}
 	addOption(USER_SCALE, currentSong->hasUserScale());
 
+	learnOption = numOptions;
+	names[numOptions++] = l10n::get(l10n::String::STRING_FOR_LEARN_USER_SCALE);
+
 	scrollPos = currentOption;
-	return numOptions > 0;
+	return true;
 }
 
 bool SelectScale::acceptCurrentOption() {
-	Scale scale = scales[currentOption];
-
 	// Both views are InstrumentClipMinders, which show the new scale's name (or that it can't be used). The one
 	// underneath then redraws with the new colours.
 	bool inKeyboard = getRootUI() == &keyboardScreen;
 	InstrumentClipMinder* minder = inKeyboard ? static_cast<InstrumentClipMinder*>(&keyboardScreen)
 	                                          : static_cast<InstrumentClipMinder*>(&instrumentClipView);
 
-	if (scale != currentSong->getCurrentScale() && minder->setScale(scale)) {
+	bool changed;
+	if (currentOption == learnOption) {
+		// Accidentals count as the in-key notes they're shown on, as when the scale is worked out on entering scale
+		// mode. If the notes make up a preset, that's what this gives.
+		changed = currentSong->setScaleNotes(currentSong->anchorsInScaleModeClips(currentSong->key));
+		if (changed) {
+			minder->displayCurrentScaleName();
+		}
+		else {
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_CHANGE_SCALE));
+		}
+	}
+	else {
+		Scale scale = scales[currentOption];
+		changed = scale != currentSong->getCurrentScale() && minder->setScale(scale);
+	}
+
+	if (changed) {
 		if (inKeyboard) {
 			keyboardScreen.onScaleChanged();
 		}

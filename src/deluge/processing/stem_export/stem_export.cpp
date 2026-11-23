@@ -797,6 +797,7 @@ void StemExport::updateScrollPosition(StemExportType stemExportType, int32_t ind
 	else if (stemExportType == StemExportType::DRUM) {
 		// reset clip view scrolling so we're back at the top left of the kit
 		currentSong->xScroll[NAVIGATION_CLIP] = 0;
+		getCurrentInstrumentClip()->fold.unfold(*getCurrentInstrumentClip(), currentSong);
 		getCurrentInstrumentClip()->yScroll = indexNumber - kDisplayHeight;
 	}
 }

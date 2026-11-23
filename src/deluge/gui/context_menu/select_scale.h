@@ -24,7 +24,8 @@
 namespace deluge::gui::context_menu {
 
 /// Popup list of the scales a scale mode clip can be switched to (the enabled presets, and the user scale if the song
-/// has one). SELECT applies the highlighted one, BACK cancels.
+/// has one), then "Learn user scale", which makes a new user scale of the notes the song's scale mode clips use.
+/// SELECT applies the highlighted one, BACK cancels.
 class SelectScale final : public ContextMenu {
 public:
 	SelectScale() = default;
@@ -38,10 +39,11 @@ public:
 	bool acceptCurrentOption() override;
 
 private:
-	static constexpr size_t kMaxOptions = NUM_PRESET_SCALES + 1; // Presets and the user scale
-	std::array<char const*, kMaxOptions> names{};
-	std::array<Scale, kMaxOptions> scales{};
+	static constexpr size_t kMaxScales = NUM_PRESET_SCALES + 1; // Presets and the user scale
+	std::array<char const*, kMaxScales + 1> names{};            // And "Learn user scale"
+	std::array<Scale, kMaxScales> scales{};
 	size_t numOptions = 0;
+	size_t learnOption = 0; ///< The index of "Learn user scale", after the scales
 };
 
 extern SelectScale selectScale;

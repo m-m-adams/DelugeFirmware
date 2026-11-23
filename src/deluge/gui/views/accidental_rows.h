@@ -50,7 +50,7 @@ public:
 		/// For the current clip.
 		Layout();
 
-		/// False if the current clip can't have hidden rows at all (a kit, or not in scale mode).
+		/// False if the current clip can't have hidden rows at all (a kit, not in scale mode, or folded).
 		[[nodiscard]] bool mayHaveHiddenRows() const { return clip_ != nullptr; }
 
 		/// The pitches drawn on the in-scale row at yDisplay: the semitones just below the next in-scale pitch in a

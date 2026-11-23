@@ -31,7 +31,8 @@ RGB accidentalColour(RGB c) {
 
 AccidentalRows::Layout::Layout() {
 	InstrumentClip* clip = getCurrentInstrumentClip();
-	if (clip->isScaleModeClip() && getCurrentOutputType() != OutputType::KIT) {
+	// Folded, every row with notes has a row of its own
+	if (clip->isScaleModeClip() && getCurrentOutputType() != OutputType::KIT && !clip->fold.isActive()) {
 		clip_ = clip;
 		flats_ = currentSong->key.prefersFlats();
 	}

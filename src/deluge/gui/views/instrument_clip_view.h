@@ -110,9 +110,8 @@ public:
 
 	// SCALE MODE related commands.
 
-	/// Learn notes from current clip + scale mode clips as USER scale.
-	/// Enters scale mode if wasn't in it already. LEARN + SCALE.
-	ActionResult commandLearnUserScale();
+	/// Show only the rows with notes, or all the rows again (see ClipFold). LEARN + SCALE, for now.
+	ActionResult commandToggleFold();
 	/// Pick a scale from a popup list. SHIFT + SCALE in scale mode.
 	ActionResult commandSelectScale();
 	/// The song's scale was changed: redraw with the new colours
@@ -426,6 +425,12 @@ private:
 	int32_t copiedScreenWidth{};
 	ScaleType copiedScaleType{};
 	int16_t copiedYNoteOfBottomRow{};
+	/// The copy was made from a folded clip, so its rows' screen positions aren't pitch intervals
+	bool copiedFromFold{};
+
+	/// Folds the current clip's rows that have gained notes, unless pads are held. Returns true if rows moved, after
+	/// updating their colours.
+	bool foldRowsThatGainedNotes();
 
 	void rotateNoteRowHorizontally(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay,
 	                               bool shouldDisplayDirectionEvenIfNoNoteRow = false);

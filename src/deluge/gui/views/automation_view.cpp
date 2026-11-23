@@ -2506,13 +2506,14 @@ void AutomationView::potentiallyVerticalScrollToSelectedDrum(InstrumentClip* cli
 	if (selectedDrum) {
 		NoteRow* noteRow = clip->getNoteRowForDrum(selectedDrum, &noteRowIndex);
 		if (noteRow) {
-			int32_t lastAuditionedYDisplayScrolled = instrumentClipView.lastAuditionedYDisplay + clip->yScroll;
-			if (noteRowIndex != lastAuditionedYDisplayScrolled) {
+			int32_t yDisplay = clip->getYDisplayFromYNote(noteRowIndex, currentSong);
+			// (A row that isn't folded can't be scrolled to)
+			if (yDisplay != ClipFold::kNotShown && yDisplay != instrumentClipView.lastAuditionedYDisplay) {
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithTimelineCounter* modelStack =
 				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-				int32_t yScrollAdjustment = noteRowIndex - lastAuditionedYDisplayScrolled;
+				int32_t yScrollAdjustment = yDisplay - instrumentClipView.lastAuditionedYDisplay;
 
 				instrumentClipView.scrollVertical(yScrollAdjustment, sdRoutineLock, false, modelStack);
 			}

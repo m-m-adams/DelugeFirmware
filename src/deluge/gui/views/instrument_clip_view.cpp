@@ -106,6 +106,14 @@ using namespace deluge::gui;
 
 PLACE_SDRAM_DATA InstrumentClipView instrumentClipView{};
 
+namespace {
+/// The yNote (for a kit, the NoteRow index) of the row that the NoteRow at yNote is shown on. That's its own, except
+/// for an accidental in an unfolded clip, which is shown on its anchor's row.
+int32_t yNoteOfDisplayedRow(InstrumentClip* clip, int32_t yNote) {
+	return clip->fold.isActive() ? yNote : clip->getDisplayAnchorYNote(yNote, currentSong);
+}
+} // namespace
+
 InstrumentClipView::InstrumentClipView() : numEditPadPresses(0) {
 
 	for (auto& edit_pad_pressed : editPadPresses) {
@@ -177,21 +185,46 @@ void InstrumentClipView::displayOrLanguageChanged() {
 void InstrumentClipView::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
 	InstrumentClipMinder::setLedStates();
+	// SCALE flashes while the clip is folded (LEARN + SCALE)
+	if (getCurrentInstrumentClip()->fold.isActive()) {
+		indicator_leds::blinkLed(IndicatorLED::SCALE_MODE);
+	}
 }
 
-ActionResult InstrumentClipView::commandLearnUserScale() {
+ActionResult InstrumentClipView::commandToggleFold() {
 	InstrumentClip* clip = getCurrentInstrumentClip();
-	if (!clip->inScaleMode) {
-		commandEnterScaleMode();
+	// Held pads and auditions are tied to their rows by screen position
+	endAllEditPadPresses();
+	cancelAllAuditioning();
+
+	deluge::l10n::String popup;
+	if (clip->fold.isActive()) {
+		clip->fold.unfold(*clip, currentSong);
+		popup = deluge::l10n::String::STRING_FOR_UNFOLD;
 	}
-	NoteSet notes = currentSong->anchorsInScaleModeClips(currentSong->key);
-	currentSong->setScaleNotes(notes);
+	else if (clip->fold.fold(*clip, currentSong)) {
+		popup = deluge::l10n::String::STRING_FOR_FOLD;
+	}
+	else {
+		popup = deluge::l10n::String::STRING_FOR_NO_NOTES_TO_FOLD;
+	}
+	display->popupTextTemporary(deluge::l10n::get(popup));
+	setLedStates();
 	recalculateColours();
 	uiNeedsRendering(this);
-	// Hook point for specificMidiDevice
-	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_CHANGE_SCALE);
-	display->popupTextTemporary("USER");
 	return ActionResult::DEALT_WITH;
+}
+
+bool InstrumentClipView::foldRowsThatGainedNotes() {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	if (!clip || numEditPadPresses > 0 || getNumNoteRowsAuditioning() > 0) {
+		return false; // Rows mustn't move under held pads
+	}
+	if (!clip->fold.addRowsThatGainedNotes(*clip)) {
+		return false;
+	}
+	recalculateColours();
+	return true;
 }
 
 ActionResult InstrumentClipView::commandSelectScale() {
@@ -229,10 +262,10 @@ ActionResult InstrumentClipView::commandChangeRootNote(uint8_t yDisplay) {
 	// uiTimerManager.unsetTimer(TimerName::DEFAULT_ROOT_NOTE);
 	cancelAllAuditioning();
 
-	int32_t oldYVisual = getYVisualFromYDisplay(yDisplay);
-	int32_t newRootNote = getCurrentInstrumentClip()->getYNoteFromYVisual(oldYVisual, currentSong);
+	int32_t newRootNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
 
 	setupChangingOfRootNote(newRootNote, yDisplay);
+	setLedStates(); // That unfolded the clip
 	currentSong->displayCurrentRootNoteAndScaleName();
 
 	recalculateColours();
@@ -613,7 +646,7 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 					checkIfAllEditPadPressesEnded(false);
 					reassessAuditionStatus(yDisplay);
 
-					int32_t noteRowIndex = yDisplay + clip->yScroll;
+					int32_t noteRowIndex = clip->getYNoteFromYDisplay(yDisplay, currentSong);
 
 					// Deleting a NoteRow outside the array would corrupt memory - skip this press instead
 					if (noteRowIndex < 0 || noteRowIndex >= clip->noteRows.getNumElements()) {
@@ -692,6 +725,9 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithTimelineCounter* modelStack =
 				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+				clip->fold.unfold(*clip, currentSong); // The scroll is reset below
+				setLedStates();
 
 				int32_t i;
 				for (i = clip->noteRows.getNumElements() - 1; i >= 0; i--) {
@@ -817,8 +853,9 @@ doCancelPopup:
 							actionLogger.deleteAllLogs();
 							cancelAllAuditioning();
 							InstrumentClip* clip = getCurrentInstrumentClip();
-							clip->noteRows.repositionElement(yDisplay + clip->yScroll,
-							                                 lastAuditionedYDisplay + clip->yScroll);
+							clip->noteRows.repositionElement(
+							    clip->getYNoteFromYDisplay(yDisplay, currentSong),
+							    clip->getYNoteFromYDisplay(lastAuditionedYDisplay, currentSong));
 							recalculateColours();
 							uiNeedsRendering(this);
 							goto passToOthers;
@@ -890,6 +927,10 @@ ActionResult InstrumentClipView::handleScaleButtonAction(bool on, bool inCardRou
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
+	if (on && Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
+		return commandToggleFold();
+	}
+
 	// Kits can't do scales!
 	if (getCurrentOutputType() == OutputType::KIT) {
 		if (on) {
@@ -908,13 +949,7 @@ ActionResult InstrumentClipView::handleScaleButtonAction(bool on, bool inCardRou
 
 	bool inScaleMode = getCurrentInstrumentClip()->inScaleMode;
 
-	if (on && Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
-		if (!inScaleMode) {
-			commandEnterScaleMode();
-		}
-		return commandLearnUserScale();
-	}
-	else if (on && inScaleMode && Buttons::isShiftButtonPressed()) {
+	if (on && inScaleMode && Buttons::isShiftButtonPressed()) {
 		// If we're note in scale mode, we defer to commands that
 		// will instead enter the scale mode.
 		return commandSelectScale();
@@ -1146,6 +1181,7 @@ void InstrumentClipView::copyNotes(Serializer* writer, bool selectedDrumOnly) {
 	copiedScaleType = getCurrentInstrumentClip()->getScaleType();
 	// getCurrentClip()->yScroll;
 	copiedYNoteOfBottomRow = getCurrentInstrumentClip()->getYNoteFromYDisplay(0, currentSong);
+	copiedFromFold = getCurrentInstrumentClip()->fold.isActive();
 
 	if (copyToFile) {
 		writer->writeOpeningTag("pattern");
@@ -1173,19 +1209,11 @@ void InstrumentClipView::copyNotes(Serializer* writer, bool selectedDrumOnly) {
 
 		   considered isNoteRowAuditioning but that required a modelstack and this was leaner
 		*/
-		int32_t noteRowYDisplay;
-		int32_t accidentalOffset = 0;
-		if (getCurrentOutputType() == OutputType::KIT) { // yDisplay for Kits
-			noteRowYDisplay = i - getCurrentInstrumentClip()->yScroll;
-		}
-		else { // Or for non-Kits
-			// An accidental is copied along with the in-scale row it is displayed on
-			accidentalOffset =
-			    thisNoteRow->y - getCurrentInstrumentClip()->getDisplayAnchorYNote(thisNoteRow->y, currentSong);
-			int32_t yVisual = currentSong->getYVisualFromYNote(thisNoteRow->y - accidentalOffset,
-			                                                   getCurrentInstrumentClip()->inScaleMode);
-			noteRowYDisplay = yVisual - getCurrentInstrumentClip()->yScroll;
-		}
+		// An accidental is copied along with the in-scale row it is displayed on
+		int32_t yNote = (getCurrentOutputType() == OutputType::KIT) ? i : thisNoteRow->y;
+		int32_t displayedYNote = yNoteOfDisplayedRow(getCurrentInstrumentClip(), yNote);
+		int32_t accidentalOffset = yNote - displayedYNote;
+		int32_t noteRowYDisplay = getCurrentInstrumentClip()->getYDisplayFromYNote(displayedYNote, currentSong);
 		if (isFilteredCopy) {
 			if (noteRowYDisplay < 0 || noteRowYDisplay >= kDisplayHeight || !auditionPadIsPressed[noteRowYDisplay])
 				continue;
@@ -1466,7 +1494,8 @@ ramError:
 		for (CopiedNoteRow* thisCopiedNoteRow = firstCopiedNoteRow; thisCopiedNoteRow;
 		     thisCopiedNoteRow = thisCopiedNoteRow->next) {
 			// the vertical offset of the copied y note added to the current yscr
-			int32_t noteRowId = thisCopiedNoteRow->yDisplay + getCurrentInstrumentClip()->yScroll;
+			int32_t noteRowId =
+			    getCurrentInstrumentClip()->getYNoteFromYDisplay(thisCopiedNoteRow->yDisplay, currentSong);
 
 			if (noteRowId < 0) {
 				continue;
@@ -1499,7 +1528,10 @@ ramError:
 
 		// If neither the source nor the destination was a kit Clip, and one had a scale and the other didn't, we want
 		// to preserve some scale information which we otherwise wouldn't
-		bool shouldPreserveScale = (copiedScaleType != ScaleType::KIT && copiedScaleType != pastedScaleType);
+		// Folded rows aren't evenly spaced in pitch, so pasting to or from a folded clip has to do the same
+		bool shouldPreserveScale =
+		    (copiedScaleType != ScaleType::KIT
+		     && (copiedScaleType != pastedScaleType || copiedFromFold || getCurrentInstrumentClip()->fold.isActive()));
 
 		for (CopiedNoteRow* thisCopiedNoteRow = firstCopiedNoteRow; thisCopiedNoteRow;
 		     thisCopiedNoteRow = thisCopiedNoteRow->next) {
@@ -1588,6 +1620,7 @@ ramError:
 		return Error::NONE;
 	}
 
+	copiedFromFold = false;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		uint16_t noteHexLength;
 		if (!strcmp(tagName, "attributes")) {
@@ -1905,6 +1938,12 @@ const uint32_t auditionPadActionUIModes[] = {UI_MODE_AUDITIONING,
                                              0};
 
 ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocity) {
+	// A row that gained notes from a press joins the fold once the pads are released
+	auto foldOnRelease = util::finally([&] {
+		if (velocity == 0 && foldRowsThatGainedNotes()) {
+			uiNeedsRendering(getRootUI());
+		}
+	});
 
 	// Drum Randomizer
 	if (x == 15 && y == 2 && velocity > 0
@@ -4526,7 +4565,7 @@ ModelStackWithNoteRow* InstrumentClipView::createNoteRowForYDisplay(ModelStackWi
 	// If *not* a kit
 	if (clip->output->type != OutputType::KIT) {
 
-		noteRow = clip->createNewNoteRowForYVisual(getYVisualFromYDisplay(yDisplay), modelStack->song);
+		noteRow = clip->noteRows.insertNoteRowAtY(clip->getYNoteFromYDisplay(yDisplay, modelStack->song));
 
 		if (!noteRow) { // If memory full
 doDisplayError:
@@ -4639,7 +4678,12 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 	}
 
 	// Do actual scroll
-	clip->yScroll += scrollAmount;
+	if (clip->fold.isActive()) {
+		clip->fold.scrollBy(scrollAmount);
+	}
+	else {
+		clip->yScroll += scrollAmount;
+	}
 
 	// Don't render - we'll do that after we've dealt with presses (potentially creating Notes)
 	recalculateColours();
@@ -4668,17 +4712,25 @@ ActionResult InstrumentClipView::scrollVertical_limit(int32_t scrollAmount, bool
                                                       ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
                                                       bool isKit, bool preventOverScrolling, int32_t& noteRowToShiftI,
                                                       int32_t& noteRowToSwapWithI) {
+	// A folded clip keeps a folded row on screen. Its rows can't be dragged, as the rows they'd swap places with
+	// aren't all on screen.
+	if (clip->fold.isActive() && (draggingNoteRow || !clip->fold.mayScrollBy(*clip, scrollAmount))) {
+		return ActionResult::DEALT_WITH;
+	}
+
 	// If a Kit...
 	if (isKit) {
-		// Limit scrolling
-		if (scrollAmount >= 0) {
-			if ((int16_t)(clip->yScroll + scrollAmount) > (int16_t)(clip->getNumNoteRows() - 1)) {
-				return ActionResult::DEALT_WITH;
+		// Limit scrolling (a folded clip was limited above)
+		if (!clip->fold.isActive()) {
+			if (scrollAmount >= 0) {
+				if ((int16_t)(clip->yScroll + scrollAmount) > (int16_t)(clip->getNumNoteRows() - 1)) {
+					return ActionResult::DEALT_WITH;
+				}
 			}
-		}
-		else {
-			if (clip->yScroll + scrollAmount < 1 - kDisplayHeight) {
-				return ActionResult::DEALT_WITH;
+			else {
+				if (clip->yScroll + scrollAmount < 1 - kDisplayHeight) {
+					return ActionResult::DEALT_WITH;
+				}
 			}
 		}
 
@@ -5159,6 +5211,11 @@ uint8_t InstrumentClipView::oneNoteAuditioning() {
 }
 
 void InstrumentClipView::offsetNoteCodeAction(int32_t newOffset) {
+	// Moving a scale degree goes by the unfolded rows. (No alert on the SCALE LED: it's already flashing to say the
+	// clip is folded, and an alert would stop that.)
+	if (getCurrentInstrumentClip()->fold.isActive() && getCurrentOutputType() != OutputType::KIT) {
+		return;
+	}
 
 	actionLogger.deleteAllLogs(); // Can't undo past this!
 
@@ -5520,6 +5577,10 @@ Drum* InstrumentClipView::getAuditionedDrum(int32_t velocity, int32_t yDisplay, 
 	if (drum == nullptr) {
 		// But not if we're actually not on this screen
 		if (getCurrentUI() != this) {
+			return drum;
+		}
+		// Nor past the ends of a folded kit, where a new row wouldn't show
+		if (getCurrentInstrumentClip()->fold.isActive() && !modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
 			return drum;
 		}
 
@@ -6074,6 +6135,9 @@ int32_t InstrumentClipView::setupForEnteringScaleMode(int32_t newRootNote, int32
 	// Having got to this function, we have recently calculated the default root note
 
 	uiTimerManager.unsetTimer(TimerName::DEFAULT_ROOT_NOTE);
+	// The scroll worked out below is for unfolded rows
+	getCurrentInstrumentClip()->fold.unfold(*getCurrentInstrumentClip(), currentSong,
+	                                        newRootNote != 2147483647 ? yDisplay : -1);
 	int32_t scrollAdjust = 0;
 	uint8_t pinAnimationToYDisplay;
 	uint8_t pinAnimationToYNote;
@@ -6209,6 +6273,8 @@ void InstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 }
 
 int32_t InstrumentClipView::setupForExitingScaleMode() {
+	// The scroll worked out below is for unfolded rows
+	getCurrentInstrumentClip()->fold.unfold(*getCurrentInstrumentClip(), currentSong);
 
 	int32_t scrollAdjust;
 	// See if there's a root note onscreen
@@ -6301,6 +6367,8 @@ void InstrumentClipView::exitScaleMode() {
 
 // If called from KeyboardScreen, the newRootNote won't correspond to the yDisplay, and that's ok
 void InstrumentClipView::setupChangingOfRootNote(int32_t newRootNote, int32_t yDisplay) {
+	// The scroll worked out below is for unfolded rows
+	getCurrentInstrumentClip()->fold.unfold(*getCurrentInstrumentClip(), currentSong, yDisplay);
 	int32_t oldYVisual = getYVisualFromYDisplay(yDisplay);
 	int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYVisual(oldYVisual, currentSong);
 	currentSong->setRootNote(newRootNote, getCurrentInstrumentClip()); // Computation to find out what scale etc
@@ -7736,8 +7804,12 @@ void InstrumentClipView::fillOffScreenImageStores() {
 
 	int32_t noteRowIndexBottom, noteRowIndexTop;
 	if (getCurrentOutputType() == OutputType::KIT) {
-		noteRowIndexBottom = getCurrentInstrumentClip()->yScroll;
-		noteRowIndexTop = getCurrentInstrumentClip()->yScroll + kDisplayHeight;
+		// (Past the ends of a folded kit, the row index is out of range)
+		int32_t numRows = getCurrentInstrumentClip()->getNumNoteRows();
+		noteRowIndexBottom =
+		    std::clamp<int32_t>(getCurrentInstrumentClip()->getYNoteFromYDisplay(0, currentSong), 0, numRows);
+		noteRowIndexTop = std::clamp<int32_t>(
+		    getCurrentInstrumentClip()->getYNoteFromYDisplay(kDisplayHeight, currentSong), 0, numRows);
 	}
 	else {
 		noteRowIndexBottom = getCurrentInstrumentClip()->noteRows.search(
@@ -7859,6 +7931,12 @@ bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 
 	if (maybeRenderShortcutsOverview(whichRows, image, occupancyMask, drawUndefinedArea)) {
 		return true;
+	}
+
+	// Rows joining the fold (e.g. from recording) move the others, so draw them all
+	if (foldRowsThatGainedNotes()) {
+		whichRows = 0xFFFFFFFF;
+		uiNeedsRendering(this, 0, 0xFFFFFFFF); // And the sidebar
 	}
 
 	PadLEDs::renderingLock = true;
@@ -8630,11 +8708,7 @@ void InstrumentClipView::render_selected_square_pulse(int32_t selection_index, u
 	auto* clip = getCurrentInstrumentClip();
 
 	// calculate y display corresponding with current screen
-	int32_t y_display =
-	    (clip->output->type == OutputType::KIT
-	         ? remembered_note_row_id
-	         : clip->getYVisualFromYNote(clip->getDisplayAnchorYNote(remembered_note_row_id, currentSong), currentSong))
-	    - clip->yScroll;
+	int32_t y_display = clip->getYDisplayFromYNote(yNoteOfDisplayedRow(clip, remembered_note_row_id), currentSong);
 
 	// if remembered note is off screen, then we don't pulse
 	if (y_display < 0 || y_display >= kDisplayHeight || !(which_rows & (1u << y_display))) {

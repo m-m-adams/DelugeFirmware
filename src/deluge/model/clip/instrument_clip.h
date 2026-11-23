@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/state_data.h"
 #include "gui/views/instrument_clip_view.h"
+#include "model/clip/clip_fold.h"
 #include "model/note/note_row_vector.h"
 #include "modulation/arpeggiator.h"
 
@@ -98,7 +99,10 @@ public:
 	NoteRow* createNewNoteRowForYVisual(int32_t, Song* song);
 	int32_t getYVisualFromYNote(int32_t, Song* song);
 	int32_t getYNoteFromYVisual(int32_t, Song* song);
+	/// Fold aware (see ClipFold). For a kit, the index of the NoteRow shown at yDisplay.
 	int32_t getYNoteFromYDisplay(int32_t yDisplay, Song* song);
+	/// The inverse of getYNoteFromYDisplay(): where the row for yNote (for a kit, a NoteRow index) is on screen
+	int32_t getYDisplayFromYNote(int32_t yNote, Song* song);
 	int32_t getNumNoteRows();
 	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(ModelStackWithTimelineCounter* modelStack,
 	                                                            Sound* sound);
@@ -128,6 +132,8 @@ public:
 	bool inScaleMode; // Probably don't quiz this directly - call isScaleModeClip() instead
 
 	int32_t yScroll;
+	/// While active, the clip editor shows only the rows with notes, and uses the fold's scroll instead of yScroll
+	ClipFold fold;
 
 	// TODO: Unscope this once namespacing is done
 	deluge::gui::ui::keyboard::KeyboardState keyboardState;
